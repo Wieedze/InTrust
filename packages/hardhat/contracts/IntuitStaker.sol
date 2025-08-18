@@ -20,7 +20,7 @@ contract IntuitStaker {
     Intuit public immutable intuitToken;
     
     // Staking parameters
-    uint256 public constant THRESHOLD = 10000 ether; // 10,000 INTUIT tokens needed
+    uint256 public constant THRESHOLD = 1000 ether; // 1,000 INTUIT tokens needed
     uint256 public constant REWARD_RATE = 125; // 12.5% APY (125/1000)
     uint256 public constant LOCK_PERIOD = 7 days;
     uint256 public constant EARLY_UNSTAKE_FEE = 20; // 2% (20/1000)
