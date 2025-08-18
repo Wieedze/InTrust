@@ -10,7 +10,7 @@ INTUDEX is a comprehensive DeFi platform combining a **Decentralized Exchange (D
 
 - **🔄 DEX Trading**: Seamless TTRUST ↔ INTUIT swaps using Constant Product AMM
 - **💎 Single-Sided Staking**: Stake INTUIT tokens without impermanent loss
-- **🎁 Collective Rewards**: 12.5% APY when community reaches 1,000+ INTUIT threshold
+- **🎁 Collective Rewards**: 12.5% APY when community reaches 10,000+ INTUIT threshold
 - **⚡ Immediate Unstaking**: Withdraw tokens anytime without penalties
 - **🏆 Fair Distribution**: Proportional rewards based on stake size
 
@@ -38,7 +38,7 @@ INTUDEX is a comprehensive DeFi platform combining a **Decentralized Exchange (D
 
 ### IntuitStaker.sol - Staking Protocol
 - Single-sided INTUIT staking
-- Collective 1,000 INTUIT threshold
+- Collective 10,000 INTUIT threshold
 - Real-time reward calculations
 - Flexible unstaking
 
@@ -80,7 +80,7 @@ IntuitStaker:    0x59b670e9fA9D0A427751Af201D676719a970857b
 
 ### Staking Process  
 1. Stake INTUIT tokens (single-sided)
-2. Help reach 1,000 INTUIT collective threshold
+2. Help reach 10,000 INTUIT collective threshold
 3. Earn 12.5% APY when threshold is met
 4. Claim proportional rewards anytime
 5. Unstake immediately without penalties
