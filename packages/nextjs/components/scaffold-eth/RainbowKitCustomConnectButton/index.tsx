@@ -46,9 +46,18 @@ export const RainbowKitCustomConnectButton = () => {
                 <>
                   <div className="flex flex-col items-center mr-1">
                     <Balance address={account.address as Address} className="min-h-0 h-auto" />
-                    <span className="text-xs" style={{ color: networkColor }}>
-                      {chain.name}
-                    </span>
+                    <div className="flex items-center gap-1">
+                      <div className="w-4 h-4 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center p-0.5">
+                        <img 
+                          src="/intuition.png" 
+                          alt="Intuition" 
+                          className="w-3 h-3 object-contain"
+                        />
+                      </div>
+                      <span className="text-xs" style={{ color: networkColor }}>
+                        {chain.name}
+                      </span>
+                    </div>
                   </div>
                   <AddressInfoDropdown
                     address={account.address as Address}

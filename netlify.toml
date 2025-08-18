@@ -1,0 +1,12 @@
+[build]
+  base = "packages/nextjs"
+  command = "yarn build"
+  publish = "packages/nextjs/.next"
+
+[build.environment]
+  NODE_VERSION = "18"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
