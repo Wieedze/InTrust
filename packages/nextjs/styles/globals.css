@@ -2,6 +2,61 @@
 @tailwind components;
 @tailwind utilities;
 
+/* DaisyUI-like button base styles */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5rem;
+  height: 3rem;
+  padding: 0 1rem;
+  min-height: 3rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-decoration: none;
+  border: 1px solid transparent;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.2s ease;
+}
+
+.btn-sm {
+  height: 2rem;
+  min-height: 2rem;
+  padding: 0 0.75rem;
+  font-size: 0.75rem;
+}
+
+.btn-primary {
+  background-color: var(--primary);
+  color: var(--primary-foreground);
+  border-color: var(--primary);
+}
+
+.btn-primary:hover {
+  background-color: color-mix(in srgb, var(--primary) 90%, black);
+}
+
+.btn-secondary {
+  background-color: var(--secondary);
+  color: var(--secondary-foreground);
+  border-color: var(--secondary);
+}
+
+.btn-secondary:hover {
+  background-color: color-mix(in srgb, var(--secondary) 80%, black);
+}
+
+.btn-ghost {
+  background-color: transparent;
+  color: currentColor;
+}
+
+.btn-ghost:hover {
+  background-color: var(--accent);
+  color: var(--accent-foreground);
+}
+
 :root {
   --radius: 0.625rem;
   --background: #000000;
@@ -70,8 +125,7 @@ body *:not([data-rk]):not([data-rk] *):not(.wallet-modal):not(.wallet-modal *) {
 }
 
 /* Fix RainbowKit wallet button styling */
-button[data-testid="rk-connect-button"],
-button[data-testid="rk-account-button"] {
+button[data-testid="rk-connect-button"] {
   background: white !important;
   color: black !important;
   border-radius: 12px !important;
@@ -82,27 +136,73 @@ button[data-testid="rk-account-button"] {
   font-weight: 600 !important;
 }
 
-/* Wallet balance section */
-button[data-testid="rk-account-button"] > div:first-child {
+/* Connected wallet button styling - white background with black text */
+button[data-testid="rk-account-button"] {
+  background: white !important;
   color: black !important;
-  font-weight: 600 !important;
-  margin-right: 8px !important;
-}
-
-/* Wallet address section */
-button[data-testid="rk-account-button"] > div:last-child {
-  color: black !important;
+  border-radius: 12px !important;
+  padding: 4px 8px !important;
+  gap: 8px !important;
   display: flex !important;
   align-items: center !important;
-  gap: 6px !important;
+  font-weight: 600 !important;
+  border: none !important;
 }
 
-/* Wallet address text */
-button[data-testid="rk-account-button"] div div:last-child div {
+/* Ensure all text in connected wallet button is black */
+button[data-testid="rk-account-button"] * {
+  color: black !important;
+}
+
+/* Wallet address and balance text */
+button[data-testid="rk-account-button"] span,
+button[data-testid="rk-account-button"] div {
   color: black !important;
 }
 
 /* Dropdown arrow */
 button[data-testid="rk-account-button"] svg {
   color: black !important;
+}
+
+/* Fix DaisyUI btn-secondary styling for connected wallet specifically */
+header .btn-secondary {
+  background: white !important;
+  color: black !important;
+  border: 1px solid white !important;
+}
+
+header .btn-secondary * {
+  color: black !important;
+}
+
+header .btn-secondary:hover {
+  background: #f3f4f6 !important;
+  color: black !important;
+}
+
+/* Ensure wallet connect area has proper styling */
+header [data-rk] .btn-secondary {
+  background: white !important;
+  color: black !important;
+  border: 1px solid white !important;
+}
+
+header [data-rk] .btn-secondary * {
+  color: black !important;
+}
+
+/* Mobile-only override: ensure connected wallet inner wrapper has white background */
+@media (max-width: 640px) {
+  /* Force the connected wallet inner wrapper to white on mobile only */
+  header .ju367va3,
+  header [data-rk] .ju367va3,
+  header button[data-testid="rk-account-button"] .ju367va3,
+  header [data-rk] button[data-testid="rk-account-button"] .ju367va3 {
+    background: #ffffff !important;
+    border: none !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    outline: none !important;
+  }
 }

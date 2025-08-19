@@ -23,15 +23,15 @@ const IntudexApp = ({ children }: { children: React.ReactNode }) => {
             <img 
               src="/intudex.png" 
               alt="INTUDEX" 
-              className="w-16 h-16 rounded-xl"
+              className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl"
             />
-            <h1 className="text-3xl font-bold text-white">
+            <h1 className="text-lg sm:text-3xl font-bold text-white">
               INTUDEX
             </h1>
           </div>
           
           {/* Connect wallet on the right with white background */}
-          <div className="[&_button]:!bg-white [&_button]:!text-black [&_button]:hover:!bg-gray-100 [&_button]:!border-0 [&_button]:!shadow-lg">
+          <div className="[&_button]:!bg-white [&_button]:!text-black [&_button]:hover:!bg-gray-100 [&_button]:!border-0 [&_button]:!shadow-lg [&_.btn-secondary]:!bg-white [&_.btn-secondary]:!text-black [&_.btn-secondary]:!border-white">
             <ConnectButton />
           </div>
         </header>

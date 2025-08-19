@@ -31,13 +31,13 @@ export const DexInterface = () => {
   const [toToken, setToToken] = useState(tokens[1]);
   const [fromAmount, setFromAmount] = useState("");
   const [toAmount, setToAmount] = useState("");
-  const [slippage, setSlippage] = useState("0.5");
+  const [slippage] = useState("0.5");
   const [isPollingReserves, setIsPollingReserves] = useState(false);
   const [isCalculating, setIsCalculating] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [activeMode, setActiveMode] = useState<"SWAP" | "STAKE">("SWAP");
   const [transactionStep, setTransactionStep] = useState<"idle" | "approving" | "swapping" | "confirmed">("idle");
-  const [txHash, setTxHash] = useState<string | undefined>();
+  const [txHash] = useState<string | undefined>();
   const [isPostTxPolling, setIsPostTxPolling] = useState(false);
 
   // Read contract data - try both native and ERC20 balance for TTRUST
@@ -294,11 +294,7 @@ export const DexInterface = () => {
     }
   };
 
-  const getReserves = () => {
-    const ttrustReserve = dexTtrustBalance?.value || 0n;
-    const intuitReserve = dexIntuitBalance || 0n;
-    return { ttrustReserve, intuitReserve };
-  };
+
 
   const isSwapping = isWritePending || transactionStep !== "idle";
   
@@ -356,7 +352,7 @@ export const DexInterface = () => {
         }, 2000);
       }
     }
-  }, [isConfirmed, transactionStep, fromToken.symbol, fromAmount]);
+  }, [isConfirmed, transactionStep, fromToken.symbol, fromAmount, handleIntuitSwap]);
 
   return (
     <div className="h-full bg-black flex items-center justify-center p-4 relative overflow-hidden">
@@ -424,12 +420,12 @@ export const DexInterface = () => {
                 </div>
               </div>
 
-            {/* From Token */}
+                          {/* From Token */}
             <div className="space-y-4">
-              <div className="bg-white/5 rounded-2xl p-4 border border-white/20 backdrop-blur-xl shadow-lg shadow-black/20">
+              <div className="bg-white/10 rounded-2xl p-4 border border-white/30 backdrop-blur-xl shadow-lg shadow-black/20">
                 <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm text-gray-400">From</span>
-                  <span className="text-sm text-gray-400">
+                  <span className="text-sm text-gray-300">From</span>
+                  <span className="text-sm text-gray-300">
                     Balance: {parseFloat(getBalance(fromToken)).toFixed(4)}
                   </span>
                 </div>
@@ -439,7 +435,7 @@ export const DexInterface = () => {
                     placeholder="0.0"
                     value={fromAmount}
                     onChange={(e) => handleFromAmountChange(e.target.value)}
-                    className="bg-transparent border-none text-2xl font-semibold text-white placeholder-gray-500 p-0 h-auto focus-visible:ring-0"
+                    className="bg-black/20 border border-white/20 text-2xl font-semibold text-white placeholder-gray-400 p-3 h-auto focus-visible:ring-2 focus-visible:ring-white/50 rounded-xl"
                   />
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -463,6 +459,25 @@ export const DexInterface = () => {
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
+                
+                {/* Percentage Buttons */}
+                <div className="flex gap-2 mt-3">
+                  {[5, 10, 25, 50, 100].map((percentage) => (
+                    <Button
+                      key={percentage}
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        const balance = parseFloat(getBalance(fromToken));
+                        const amount = (balance * percentage / 100).toString();
+                        handleFromAmountChange(amount);
+                      }}
+                      className="bg-white/10 hover:bg-white/20 text-white text-xs px-3 py-1 rounded-lg border border-white/20 flex-1 min-h-[32px]"
+                    >
+                      {percentage === 100 ? "MAX" : `${percentage}%`}
+                    </Button>
+                  ))}
+                </div>
               </div>
 
               {/* Swap Button */}
@@ -478,24 +493,24 @@ export const DexInterface = () => {
               </div>
 
               {/* To Token */}
-              <div className="bg-white/5 rounded-2xl p-4 border border-white/20 backdrop-blur-xl shadow-lg shadow-black/20">
+              <div className="bg-white/10 rounded-2xl p-4 border border-white/30 backdrop-blur-xl shadow-lg shadow-black/20">
                 <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm text-gray-400">To</span>
-                  <span className="text-sm text-gray-400">
+                  <span className="text-sm text-gray-300">To</span>
+                  <span className="text-sm text-gray-300">
                     Balance: {parseFloat(getBalance(toToken)).toFixed(4)}
                   </span>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="flex-1">
                     {isCalculating || isInitialLoading ? (
-                      <Skeleton className="h-8 w-32 bg-gray-700" />
+                      <Skeleton className="h-12 w-full bg-gray-700 rounded-xl" />
                     ) : (
                       <Input
                         type="number"
                         placeholder="0.0"
                         value={toAmount}
                         readOnly
-                        className="bg-transparent border-none text-2xl font-semibold text-white placeholder-gray-500 p-0 h-auto focus-visible:ring-0 w-full"
+                        className="bg-black/20 border border-white/20 text-2xl font-semibold text-white placeholder-gray-400 p-3 h-auto focus-visible:ring-0 w-full rounded-xl"
                       />
                     )}
                   </div>
@@ -618,31 +633,31 @@ export const DexInterface = () => {
 
         {/* Pool Stats - Only show for SWAP mode */}
         {activeMode === "SWAP" && (
-          <div className="mt-4 grid grid-cols-2 gap-3">
+          <div className="mt-2 grid grid-cols-2 gap-2 sm:mt-4 sm:gap-3">
             <Card className="bg-white/5 border-white/20 backdrop-blur-2xl shadow-2xl shadow-black/20 before:absolute before:inset-0 before:bg-gradient-to-br before:from-white/10 before:to-transparent before:rounded-lg before:pointer-events-none relative">
-              <CardContent className="p-4 text-center relative z-10">
-                <div className="text-2xl font-bold text-white text-center">
+              <CardContent className="p-1.5 sm:p-4 text-center relative z-10 min-h-[10px] sm:min-h-0">
+                <div className="text-sm sm:text-2xl font-bold text-white text-center leading-none">
                   {isInitialLoading ? (
-                    <Skeleton className="h-8 w-24 bg-gray-700 mx-auto" />
+                    <Skeleton className="h-3 sm:h-8 w-20 sm:w-24 bg-gray-700 mx-auto" />
                   ) : (
                     dexTtrustBalance ? parseFloat(formatEther(dexTtrustBalance.value)).toFixed(2) : "0"
                   )}
                 </div>
-                <div className="text-sm text-white">TTRUST Pool</div>
+                <div className="text-[10px] sm:text-sm text-white leading-none mt-0.5 sm:mt-1">TTRUST Pool</div>
               </CardContent>
             </Card>
             <Card className="bg-white/5 border-white/20 backdrop-blur-2xl shadow-2xl shadow-black/20 before:absolute before:inset-0 before:bg-gradient-to-br before:from-white/10 before:to-transparent before:rounded-lg before:pointer-events-none relative">
-              <CardContent className="p-4 text-center relative z-10">
-                <div className="text-2xl font-bold text-white text-center">
+              <CardContent className="p-1.5 sm:p-4 text-center relative z-10 min-h-[10px] sm:min-h-0">
+                <div className="text-sm sm:text-2xl font-bold text-white text-center leading-none">
                   {dexIntuitBalanceLoading || isInitialLoading ? (
-                    <Skeleton className="h-8 w-24 bg-gray-700 mx-auto" />
+                    <Skeleton className="h-3 sm:h-8 w-20 sm:w-24 bg-gray-700 mx-auto" />
                   ) : dexIntuitBalanceError ? (
                     "Error"
                   ) : (
                     dexIntuitBalance ? parseFloat(formatEther(dexIntuitBalance)).toFixed(2) : "0"
                   )}
                 </div>
-                <div className="text-sm text-white">INTUIT Pool</div>
+                <div className="text-[10px] sm:text-sm text-white leading-none mt-0.5 sm:mt-1">INTUIT Pool</div>
               </CardContent>
             </Card>
           </div>
