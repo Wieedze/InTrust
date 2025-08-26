@@ -1,26 +1,27 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { parseEther, formatEther, parseUnits } from "viem";
-import { useAccount, useBalance, useWriteContract, useWaitForTransactionReceipt, useReadContract } from "wagmi";
-import { Card, CardContent } from "./ui/card";
-import { Button } from "./ui/button";
-import { Input } from "./ui/input";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
-import { Skeleton } from "./ui/skeleton";
-import { Badge } from "./ui/badge";
-import { ArrowUpDown, ChevronDown, Settings, RefreshCw } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { PairManager } from "./PairManager";
 import { ParticleBackground } from "./ParticleBackground";
 import { StakeInterface } from "./StakeInterface";
+import { Badge } from "./ui/badge";
+import { Button } from "./ui/button";
+import { Card, CardContent } from "./ui/card";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
+import { Input } from "./ui/input";
+import { Skeleton } from "./ui/skeleton";
+import { ArrowUpDown, ChevronDown, RefreshCw, Settings } from "lucide-react";
+import { formatEther, parseEther, parseUnits } from "viem";
+import { useAccount, useBalance, useReadContract, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
 
 export const DexInterface = () => {
   const { address: connectedAddress } = useAccount();
-  
+
   // Contract addresses for INTUITION testnet (Chain ID: 13579) - Using NEW contracts
   const dexAddress = "0xc6e7DF5E7b4f2A278906862b61205850344D4e7d"; // IntuitDEX contract (NEW)
   const ttrustAddress = "0xA54b4E6e356b963Ee00d1C947f478d9194a1a210"; // Native TTRUST on INTUITION
   const intuitAddress = "0x3Aa5ebB10DC797CAC828524e59A333d0A371443c"; // INTUIT token (NEW)
-  
+
   // Token configuration
   const tokens = [
     { symbol: "TTRUST", name: "Testnet TRUST", logo: "/intuition.png?v=1", address: ttrustAddress },
@@ -35,8 +36,9 @@ export const DexInterface = () => {
   const [isPollingReserves, setIsPollingReserves] = useState(false);
   const [isCalculating, setIsCalculating] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
-  const [activeMode, setActiveMode] = useState<"SWAP" | "STAKE">("SWAP");
+  const [activeMode, setActiveMode] = useState<"SWAP" | "STAKE" | "PAIRS">("SWAP");
   const [transactionStep, setTransactionStep] = useState<"idle" | "approving" | "swapping" | "confirmed">("idle");
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [txHash] = useState<string | undefined>();
   const [isPostTxPolling, setIsPostTxPolling] = useState(false);
 
@@ -53,7 +55,12 @@ export const DexInterface = () => {
   });
 
   // Direct contract read for INTUIT balance to avoid multicall issues
-  const { data: intuitBalance, error: intuitBalanceError, isLoading: intuitBalanceLoading, refetch: refetchIntuitBalance } = useReadContract({
+  const {
+    data: intuitBalance,
+    error: intuitBalanceError,
+    isLoading: intuitBalanceLoading,
+    refetch: refetchIntuitBalance,
+  } = useReadContract({
     address: intuitAddress as `0x${string}`,
     abi: [
       {
@@ -61,12 +68,12 @@ export const DexInterface = () => {
         type: "function",
         stateMutability: "view",
         inputs: [{ name: "account", type: "address" }],
-        outputs: [{ name: "", type: "uint256" }]
-      }
+        outputs: [{ name: "", type: "uint256" }],
+      },
     ],
     functionName: "balanceOf",
     args: [connectedAddress as `0x${string}`],
-    query: { enabled: !!connectedAddress }
+    query: { enabled: !!connectedAddress },
   });
 
   const { data: dexTtrustBalance, refetch: refetchTtrustBalance } = useBalance({
@@ -75,7 +82,12 @@ export const DexInterface = () => {
   });
 
   // Direct contract read for DEX INTUIT balance to avoid multicall issues
-  const { data: dexIntuitBalance, error: dexIntuitBalanceError, isLoading: dexIntuitBalanceLoading, refetch: refetchDexIntuitBalance } = useReadContract({
+  const {
+    data: dexIntuitBalance,
+    error: dexIntuitBalanceError,
+    isLoading: dexIntuitBalanceLoading,
+    refetch: refetchDexIntuitBalance,
+  } = useReadContract({
     address: intuitAddress as `0x${string}`,
     abi: [
       {
@@ -83,8 +95,8 @@ export const DexInterface = () => {
         type: "function",
         stateMutability: "view",
         inputs: [{ name: "account", type: "address" }],
-        outputs: [{ name: "", type: "uint256" }]
-      }
+        outputs: [{ name: "", type: "uint256" }],
+      },
     ],
     functionName: "balanceOf",
     args: [dexAddress as `0x${string}`],
@@ -98,26 +110,26 @@ export const DexInterface = () => {
       stateMutability: "nonpayable",
       inputs: [
         { name: "spender", type: "address" },
-        { name: "amount", type: "uint256" }
+        { name: "amount", type: "uint256" },
       ],
-      outputs: [{ name: "", type: "bool" }]
-    }
+      outputs: [{ name: "", type: "bool" }],
+    },
   ] as const;
 
   const intuitDexAbi = [
     {
       name: "swapTtrustForIntuit",
-      type: "function", 
+      type: "function",
       stateMutability: "payable",
       inputs: [],
-      outputs: [{ name: "", type: "uint256" }]
+      outputs: [{ name: "", type: "uint256" }],
     },
     {
       name: "swapIntuitForTtrust",
       type: "function",
-      stateMutability: "nonpayable", 
+      stateMutability: "nonpayable",
       inputs: [{ name: "intuitAmount", type: "uint256" }],
-      outputs: [{ name: "", type: "uint256" }]
+      outputs: [{ name: "", type: "uint256" }],
     },
     {
       name: "getAmountOut",
@@ -126,9 +138,9 @@ export const DexInterface = () => {
       inputs: [
         { name: "inputAmount", type: "uint256" },
         { name: "inputReserve", type: "uint256" },
-        { name: "outputReserve", type: "uint256" }
+        { name: "outputReserve", type: "uint256" },
       ],
-      outputs: [{ name: "", type: "uint256" }]
+      outputs: [{ name: "", type: "uint256" }],
     },
     {
       name: "getReserves",
@@ -137,14 +149,14 @@ export const DexInterface = () => {
       inputs: [],
       outputs: [
         { name: "ttrustReserve", type: "uint256" },
-        { name: "intuitReserve", type: "uint256" }
-      ]
-    }
+        { name: "intuitReserve", type: "uint256" },
+      ],
+    },
   ] as const;
 
   // Write contract functions
   const { writeContract, isPending: isWritePending, data: writeData } = useWriteContract();
-  
+
   // Wait for transaction receipt
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
     hash: writeData,
@@ -155,10 +167,7 @@ export const DexInterface = () => {
     const pollReserves = async () => {
       setIsPollingReserves(true);
       try {
-        await Promise.all([
-          refetchTtrustBalance(),
-          refetchDexIntuitBalance()
-        ]);
+        await Promise.all([refetchTtrustBalance(), refetchDexIntuitBalance()]);
       } catch (error) {
         console.error("Error polling reserves:", error);
       } finally {
@@ -185,12 +194,12 @@ export const DexInterface = () => {
   // Calculate price for swaps
   const calculatePrice = (inputAmount: string, inputReserve: bigint, outputReserve: bigint) => {
     if (!inputAmount || !inputReserve || !outputReserve) return "0";
-    
+
     try {
       const input = parseEther(inputAmount);
       const inputWithFee = input * 997n;
       const numerator = inputWithFee * outputReserve;
-      const denominator = (inputReserve * 1000n) + inputWithFee;
+      const denominator = inputReserve * 1000n + inputWithFee;
       const output = numerator / denominator;
       return formatEther(output);
     } catch {
@@ -201,14 +210,14 @@ export const DexInterface = () => {
   // Update output amount when input changes
   const handleFromAmountChange = (value: string) => {
     setFromAmount(value);
-    
+
     if (value && dexTtrustBalance && dexIntuitBalance) {
       setIsCalculating(true);
-      
+
       // Extended delay to show skeleton for 0.7 seconds
       setTimeout(() => {
         const isTtrustToIntuit = fromToken.symbol === "TTRUST";
-        const outputAmount = isTtrustToIntuit 
+        const outputAmount = isTtrustToIntuit
           ? calculatePrice(value, dexTtrustBalance.value, dexIntuitBalance)
           : calculatePrice(value, dexIntuitBalance, dexTtrustBalance.value);
         setToAmount(outputAmount);
@@ -245,7 +254,7 @@ export const DexInterface = () => {
     } else {
       // INTUIT to TTRUST swap (requires approval first)
       const amount = parseUnits(fromAmount, 18);
-      
+
       // Step 1: Approve
       setTransactionStep("approving");
       writeContract({
@@ -258,7 +267,7 @@ export const DexInterface = () => {
   };
 
   // Handle the second step of INTUIT swap after approval
-  const handleIntuitSwap = () => {
+  const handleIntuitSwap = useCallback(() => {
     if (fromToken.symbol === "INTUIT" && fromAmount) {
       const amount = parseUnits(fromAmount, 18);
       setTransactionStep("swapping");
@@ -269,35 +278,31 @@ export const DexInterface = () => {
         args: [amount],
       });
     }
-  };
-
-
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fromToken.symbol, fromAmount, writeContract]);
 
   // Helper functions
-  const getBalance = (token: typeof tokens[0]) => {
+  const getBalance = (token: (typeof tokens)[0]) => {
     if (token.symbol === "TTRUST") {
       // Try native balance first (since TTRUST might be the native token)
       const balance = ttrustBalanceNative?.value || ttrustBalanceERC20?.value;
       return balance ? formatEther(balance) : "0";
     } else {
-      
       // Handle loading state
       if (intuitBalanceLoading) return "Loading...";
-      
+
       // Handle error state
       if (intuitBalanceError) {
         console.error("INTUIT Balance Error:", intuitBalanceError);
         return "Error";
       }
-      
+
       return intuitBalance ? formatEther(intuitBalance) : "0";
     }
   };
 
-
-
   const isSwapping = isWritePending || transactionStep !== "idle";
-  
+
   // Post-transaction balance polling
   useEffect(() => {
     if (isPostTxPolling) {
@@ -308,7 +313,7 @@ export const DexInterface = () => {
             refetchTtrustBalanceNative(),
             refetchIntuitBalance(),
             refetchTtrustBalance(),
-            refetchDexIntuitBalance()
+            refetchDexIntuitBalance(),
           ]);
         } catch (error) {
           console.error("Error polling user balances:", error);
@@ -330,7 +335,14 @@ export const DexInterface = () => {
         clearTimeout(timeout);
       };
     }
-  }, [isPostTxPolling, refetchTtrustBalanceERC20, refetchTtrustBalanceNative, refetchIntuitBalance, refetchTtrustBalance, refetchDexIntuitBalance]);
+  }, [
+    isPostTxPolling,
+    refetchTtrustBalanceERC20,
+    refetchTtrustBalanceNative,
+    refetchIntuitBalance,
+    refetchTtrustBalance,
+    refetchDexIntuitBalance,
+  ]);
 
   // Update transaction step based on confirmation status
   useEffect(() => {
@@ -363,20 +375,24 @@ export const DexInterface = () => {
           <div className="bg-white/5 border border-white/20 backdrop-blur-xl rounded-2xl p-1 flex">
             <button
               onClick={() => setActiveMode("SWAP")}
-              className={`flex-1 py-2 px-6 rounded-xl font-semibold transition-all duration-200 ${
-                activeMode === "SWAP"
-                  ? "bg-white text-black shadow-lg"
-                  : "text-white hover:bg-white/10"
+              className={`flex-1 py-2 px-4 rounded-xl font-semibold transition-all duration-200 text-sm ${
+                activeMode === "SWAP" ? "bg-white text-black shadow-lg" : "text-white hover:bg-white/10"
               }`}
             >
               SWAP
             </button>
             <button
+              onClick={() => setActiveMode("PAIRS")}
+              className={`flex-1 py-2 px-4 rounded-xl font-semibold transition-all duration-200 text-sm ${
+                activeMode === "PAIRS" ? "bg-white text-black shadow-lg" : "text-white hover:bg-white/10"
+              }`}
+            >
+              PAIRS
+            </button>
+            <button
               onClick={() => setActiveMode("STAKE")}
-              className={`flex-1 py-2 px-6 rounded-xl font-semibold transition-all duration-200 ${
-                activeMode === "STAKE"
-                  ? "bg-white text-black shadow-lg"
-                  : "text-white hover:bg-white/10"
+              className={`flex-1 py-2 px-4 rounded-xl font-semibold transition-all duration-200 text-sm ${
+                activeMode === "STAKE" ? "bg-white text-black shadow-lg" : "text-white hover:bg-white/10"
               }`}
             >
               STAKE
@@ -392,16 +408,12 @@ export const DexInterface = () => {
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-semibold text-white">Swap</h2>
                 <div className="flex items-center gap-2">
-                  <Badge 
-                    asChild 
-                    variant="outline" 
+                  <Badge
+                    asChild
+                    variant="outline"
                     className="bg-blue-500/20 border-blue-400/50 text-blue-300 hover:bg-blue-500/30 cursor-pointer transition-colors text-xs px-2 py-1"
                   >
-                    <a 
-                      href="https://testnet.hub.intuition.systems/" 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                    >
+                    <a href="https://testnet.hub.intuition.systems/" target="_blank" rel="noopener noreferrer">
                       Faucet
                     </a>
                   </Badge>
@@ -412,221 +424,232 @@ export const DexInterface = () => {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent className="bg-gray-800 border-gray-700">
-                      <DropdownMenuItem className="text-white">
-                        Slippage: {slippage}%
-                      </DropdownMenuItem>
+                      <DropdownMenuItem className="text-white">Slippage: {slippage}%</DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
               </div>
 
-                          {/* From Token */}
-            <div className="space-y-4">
-              <div className="bg-white/10 rounded-2xl p-4 border border-white/30 backdrop-blur-xl shadow-lg shadow-black/20">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm text-gray-300">From</span>
-                  <span className="text-sm text-gray-300">
-                    Balance: {parseFloat(getBalance(fromToken)).toFixed(4)}
-                  </span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Input
-                    type="number"
-                    placeholder="0.0"
-                    value={fromAmount}
-                    onChange={(e) => handleFromAmountChange(e.target.value)}
-                    className="bg-black/20 border border-white/20 text-2xl font-semibold text-white placeholder-gray-400 p-3 h-auto focus-visible:ring-2 focus-visible:ring-white/50 rounded-xl"
-                  />
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" className="bg-gray-700 hover:bg-gray-600 text-white rounded-full px-4 py-2">
-                        <img src={fromToken.logo} alt={fromToken.symbol} className="w-5 h-5 mr-2 rounded-full" />
-                        {fromToken.symbol}
-                        <ChevronDown className="w-4 h-4 ml-2" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="bg-gray-800 border-gray-700">
-                      {tokens.map((token) => (
-                        <DropdownMenuItem
-                          key={token.symbol}
-                          onClick={() => setFromToken(token)}
-                          className="text-white hover:bg-gray-700"
-                        >
-                          <img src={token.logo} alt={token.symbol} className="w-4 h-4 mr-2 rounded-full" />
-                          {token.symbol}
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-                
-                {/* Percentage Buttons */}
-                <div className="flex gap-2 mt-3">
-                  {[5, 10, 25, 50, 100].map((percentage) => (
-                    <Button
-                      key={percentage}
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        const balance = parseFloat(getBalance(fromToken));
-                        const amount = (balance * percentage / 100).toString();
-                        handleFromAmountChange(amount);
-                      }}
-                      className="bg-white/10 hover:bg-white/20 text-white text-xs px-3 py-1 rounded-lg border border-white/20 flex-1 min-h-[32px]"
-                    >
-                      {percentage === 100 ? "MAX" : `${percentage}%`}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Swap Button */}
-              <div className="flex justify-center">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleSwapTokens}
-                  className="bg-gray-800 hover:bg-gray-700 rounded-full p-2 border border-gray-700"
-                >
-                  <ArrowUpDown className="w-4 h-4 text-gray-400" />
-                </Button>
-              </div>
-
-              {/* To Token */}
-              <div className="bg-white/10 rounded-2xl p-4 border border-white/30 backdrop-blur-xl shadow-lg shadow-black/20">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm text-gray-300">To</span>
-                  <span className="text-sm text-gray-300">
-                    Balance: {parseFloat(getBalance(toToken)).toFixed(4)}
-                  </span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="flex-1">
-                    {isCalculating || isInitialLoading ? (
-                      <Skeleton className="h-12 w-full bg-gray-700 rounded-xl" />
-                    ) : (
-                      <Input
-                        type="number"
-                        placeholder="0.0"
-                        value={toAmount}
-                        readOnly
-                        className="bg-black/20 border border-white/20 text-2xl font-semibold text-white placeholder-gray-400 p-3 h-auto focus-visible:ring-0 w-full rounded-xl"
-                      />
-                    )}
-                  </div>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" className="bg-gray-700 hover:bg-gray-600 text-white rounded-full px-4 py-2 flex-shrink-0">
-                        <img src={toToken.logo} alt={toToken.symbol} className="w-5 h-5 mr-2 rounded-full" />
-                        {toToken.symbol}
-                        <ChevronDown className="w-4 h-4 ml-2" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="bg-gray-800 border-gray-700">
-                      {tokens.map((token) => (
-                        <DropdownMenuItem
-                          key={token.symbol}
-                          onClick={() => setToToken(token)}
-                          className="text-white hover:bg-gray-700"
-                        >
-                          <img src={token.logo} alt={token.symbol} className="w-4 h-4 mr-2 rounded-full" />
-                          {token.symbol}
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </div>
-
-              {/* Price Info */}
-              {fromAmount && toAmount && (
-                <div className="bg-white/5 rounded-xl p-3 text-sm text-gray-400 border border-white/20 backdrop-blur-xl shadow-lg shadow-black/20">
-                  <div className="flex justify-between">
-                    <span className="flex items-center gap-2">
-                      Rate
-                      {isPollingReserves && (
-                        <RefreshCw className="w-3 h-3 animate-spin text-white" />
-                      )}
+              {/* From Token */}
+              <div className="space-y-4">
+                <div className="bg-white/10 rounded-2xl p-4 border border-white/30 backdrop-blur-xl shadow-lg shadow-black/20">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-sm text-gray-300">From</span>
+                    <span className="text-sm text-gray-300">
+                      Balance: {parseFloat(getBalance(fromToken)).toFixed(4)}
                     </span>
-                    {isPollingReserves || isCalculating ? (
-                      <Skeleton className="h-4 w-32 bg-gray-700" />
-                    ) : (
-                      <span>1 {fromToken.symbol} = {(parseFloat(toAmount) / parseFloat(fromAmount)).toFixed(6)} {toToken.symbol}</span>
-                    )}
                   </div>
-                  <div className="flex justify-between mt-1">
-                    <span>Fee (0.3%)</span>
-                    <span>{(parseFloat(fromAmount) * 0.003).toFixed(6)} {fromToken.symbol}</span>
+                  <div className="flex items-center gap-3">
+                    <Input
+                      type="number"
+                      placeholder="0.0"
+                      value={fromAmount}
+                      onChange={e => handleFromAmountChange(e.target.value)}
+                      className="bg-black/20 border border-white/20 text-2xl font-semibold text-white placeholder-gray-400 p-3 h-auto focus-visible:ring-2 focus-visible:ring-white/50 rounded-xl"
+                    />
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          className="bg-gray-700 hover:bg-gray-600 text-white rounded-full px-4 py-2"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={fromToken.logo} alt={fromToken.symbol} className="w-5 h-5 mr-2 rounded-full" />
+                          {fromToken.symbol}
+                          <ChevronDown className="w-4 h-4 ml-2" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent className="bg-gray-800 border-gray-700">
+                        {tokens.map(token => (
+                          <DropdownMenuItem
+                            key={token.symbol}
+                            onClick={() => setFromToken(token)}
+                            className="text-white hover:bg-gray-700"
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={token.logo} alt={token.symbol} className="w-4 h-4 mr-2 rounded-full" />
+                            {token.symbol}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+
+                  {/* Percentage Buttons */}
+                  <div className="flex gap-2 mt-3">
+                    {[5, 10, 25, 50, 100].map(percentage => (
+                      <Button
+                        key={percentage}
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          const balance = parseFloat(getBalance(fromToken));
+                          const amount = ((balance * percentage) / 100).toString();
+                          handleFromAmountChange(amount);
+                        }}
+                        className="bg-white/10 hover:bg-white/20 text-white text-xs px-3 py-1 rounded-lg border border-white/20 flex-1 min-h-[32px]"
+                      >
+                        {percentage === 100 ? "MAX" : `${percentage}%`}
+                      </Button>
+                    ))}
                   </div>
                 </div>
-              )}
 
-              {/* Action Buttons */}
-              <div className="space-y-3">
-                {!connectedAddress ? (
-                  <div className="text-center py-4">
-                    <Button className="w-full bg-white hover:bg-gray-200 text-black font-semibold py-3 rounded-2xl">
-                      Connect Wallet
-                    </Button>
+                {/* Swap Button */}
+                <div className="flex justify-center">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleSwapTokens}
+                    className="bg-gray-800 hover:bg-gray-700 rounded-full p-2 border border-gray-700"
+                  >
+                    <ArrowUpDown className="w-4 h-4 text-gray-400" />
+                  </Button>
+                </div>
+
+                {/* To Token */}
+                <div className="bg-white/10 rounded-2xl p-4 border border-white/30 backdrop-blur-xl shadow-lg shadow-black/20">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-sm text-gray-300">To</span>
+                    <span className="text-sm text-gray-300">Balance: {parseFloat(getBalance(toToken)).toFixed(4)}</span>
                   </div>
-                ) : (
-                  <div className="space-y-2">
-                    <Button
-                      onClick={handleSwap}
-                      disabled={!fromAmount || isSwapping}
-                      className="w-full bg-white hover:bg-gray-200 text-black font-semibold py-3 rounded-2xl relative overflow-hidden"
-                    >
-                      {transactionStep === "idle" && "Swap"}
-                      {transactionStep === "approving" && (
-                        <span className="flex items-center justify-center gap-2">
-                          <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
-                          Approving {fromToken.symbol}...
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1">
+                      {isCalculating || isInitialLoading ? (
+                        <Skeleton className="h-12 w-full bg-gray-700 rounded-xl" />
+                      ) : (
+                        <Input
+                          type="number"
+                          placeholder="0.0"
+                          value={toAmount}
+                          readOnly
+                          className="bg-black/20 border border-white/20 text-2xl font-semibold text-white placeholder-gray-400 p-3 h-auto focus-visible:ring-0 w-full rounded-xl"
+                        />
+                      )}
+                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          className="bg-gray-700 hover:bg-gray-600 text-white rounded-full px-4 py-2 flex-shrink-0"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={toToken.logo} alt={toToken.symbol} className="w-5 h-5 mr-2 rounded-full" />
+                          {toToken.symbol}
+                          <ChevronDown className="w-4 h-4 ml-2" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent className="bg-gray-800 border-gray-700">
+                        {tokens.map(token => (
+                          <DropdownMenuItem
+                            key={token.symbol}
+                            onClick={() => setToToken(token)}
+                            className="text-white hover:bg-gray-700"
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={token.logo} alt={token.symbol} className="w-4 h-4 mr-2 rounded-full" />
+                            {token.symbol}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </div>
+
+                {/* Price Info */}
+                {fromAmount && toAmount && (
+                  <div className="bg-white/5 rounded-xl p-3 text-sm text-gray-400 border border-white/20 backdrop-blur-xl shadow-lg shadow-black/20">
+                    <div className="flex justify-between">
+                      <span className="flex items-center gap-2">
+                        Rate
+                        {isPollingReserves && <RefreshCw className="w-3 h-3 animate-spin text-white" />}
+                      </span>
+                      {isPollingReserves || isCalculating ? (
+                        <Skeleton className="h-4 w-32 bg-gray-700" />
+                      ) : (
+                        <span>
+                          1 {fromToken.symbol} = {(parseFloat(toAmount) / parseFloat(fromAmount)).toFixed(6)}{" "}
+                          {toToken.symbol}
                         </span>
                       )}
-                      {transactionStep === "swapping" && (
-                        <span className="flex items-center justify-center gap-2">
-                          <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
-                          Swapping...
-                        </span>
-                      )}
-                      {transactionStep === "confirmed" && (
-                        <span className="flex items-center justify-center gap-2 text-green-400 font-semibold animate-pulse drop-shadow-[0_0_8px_rgba(34,197,94,0.8)]">
-                          ✓ Transaction Confirmed!
-                        </span>
-                      )}
-                    </Button>
-                    
-                    {/* Transaction Status */}
-                    {transactionStep !== "idle" && (
-                      <div className="bg-white/5 rounded-xl p-3 text-sm border border-white/20 backdrop-blur-xl">
-                        <div className="flex items-center justify-between">
-                          <span className="text-gray-400">
-                            {transactionStep === "approving" && "Step 1/2: Approving token spend..."}
-                            {transactionStep === "swapping" && "Step 2/2: Executing swap..."}
-                            {transactionStep === "confirmed" && "Swap completed successfully!"}
-                          </span>
-                          {isConfirming && (
-                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                          )}
-                        </div>
-                        {fromToken.symbol === "INTUIT" && transactionStep === "approving" && (
-                          <div className="mt-2 text-xs text-gray-500">
-                            Please confirm the approval transaction in your wallet
-                          </div>
-                        )}
-                        {transactionStep === "swapping" && (
-                          <div className="mt-2 text-xs text-gray-500">
-                            Please confirm the swap transaction in your wallet
-                          </div>
-                        )}
-                      </div>
-                    )}
+                    </div>
+                    <div className="flex justify-between mt-1">
+                      <span>Fee (0.3%)</span>
+                      <span>
+                        {(parseFloat(fromAmount) * 0.003).toFixed(6)} {fromToken.symbol}
+                      </span>
+                    </div>
                   </div>
                 )}
+
+                {/* Action Buttons */}
+                <div className="space-y-3">
+                  {!connectedAddress ? (
+                    <div className="text-center py-4">
+                      <Button className="w-full bg-white hover:bg-gray-200 text-black font-semibold py-3 rounded-2xl">
+                        Connect Wallet
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <Button
+                        onClick={handleSwap}
+                        disabled={!fromAmount || isSwapping}
+                        className="w-full bg-white hover:bg-gray-200 text-black font-semibold py-3 rounded-2xl relative overflow-hidden"
+                      >
+                        {transactionStep === "idle" && "Swap"}
+                        {transactionStep === "approving" && (
+                          <span className="flex items-center justify-center gap-2">
+                            <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
+                            Approving {fromToken.symbol}...
+                          </span>
+                        )}
+                        {transactionStep === "swapping" && (
+                          <span className="flex items-center justify-center gap-2">
+                            <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
+                            Swapping...
+                          </span>
+                        )}
+                        {transactionStep === "confirmed" && (
+                          <span className="flex items-center justify-center gap-2 text-green-400 font-semibold animate-pulse drop-shadow-[0_0_8px_rgba(34,197,94,0.8)]">
+                            ✓ Transaction Confirmed!
+                          </span>
+                        )}
+                      </Button>
+
+                      {/* Transaction Status */}
+                      {transactionStep !== "idle" && (
+                        <div className="bg-white/5 rounded-xl p-3 text-sm border border-white/20 backdrop-blur-xl">
+                          <div className="flex items-center justify-between">
+                            <span className="text-gray-400">
+                              {transactionStep === "approving" && "Step 1/2: Approving token spend..."}
+                              {transactionStep === "swapping" && "Step 2/2: Executing swap..."}
+                              {transactionStep === "confirmed" && "Swap completed successfully!"}
+                            </span>
+                            {isConfirming && (
+                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                            )}
+                          </div>
+                          {fromToken.symbol === "INTUIT" && transactionStep === "approving" && (
+                            <div className="mt-2 text-xs text-gray-500">
+                              Please confirm the approval transaction in your wallet
+                            </div>
+                          )}
+                          {transactionStep === "swapping" && (
+                            <div className="mt-2 text-xs text-gray-500">
+                              Please confirm the swap transaction in your wallet
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
             </CardContent>
           </Card>
+        ) : activeMode === "PAIRS" ? (
+          <PairManager />
         ) : (
           <StakeInterface />
         )}
@@ -639,8 +662,10 @@ export const DexInterface = () => {
                 <div className="text-sm sm:text-2xl font-bold text-white text-center leading-none">
                   {isInitialLoading ? (
                     <Skeleton className="h-3 sm:h-8 w-20 sm:w-24 bg-gray-700 mx-auto" />
+                  ) : dexTtrustBalance ? (
+                    parseFloat(formatEther(dexTtrustBalance.value)).toFixed(2)
                   ) : (
-                    dexTtrustBalance ? parseFloat(formatEther(dexTtrustBalance.value)).toFixed(2) : "0"
+                    "0"
                   )}
                 </div>
                 <div className="text-[10px] sm:text-sm text-white leading-none mt-0.5 sm:mt-1">TTRUST Pool</div>
@@ -653,8 +678,10 @@ export const DexInterface = () => {
                     <Skeleton className="h-3 sm:h-8 w-20 sm:w-24 bg-gray-700 mx-auto" />
                   ) : dexIntuitBalanceError ? (
                     "Error"
+                  ) : dexIntuitBalance ? (
+                    parseFloat(formatEther(dexIntuitBalance)).toFixed(2)
                   ) : (
-                    dexIntuitBalance ? parseFloat(formatEther(dexIntuitBalance)).toFixed(2) : "0"
+                    "0"
                   )}
                 </div>
                 <div className="text-[10px] sm:text-sm text-white leading-none mt-0.5 sm:mt-1">INTUIT Pool</div>
@@ -669,7 +696,6 @@ export const DexInterface = () => {
             <p>Powered by Intuition Testnet • 0.3% trading fee</p>
           </div>
         )}
-
       </div>
     </div>
   );

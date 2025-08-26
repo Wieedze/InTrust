@@ -1,5 +1,6 @@
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import { DeployFunction } from "hardhat-deploy/types";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { Contract } from "ethers";
 
 /**
@@ -34,29 +35,11 @@ const deployIntuitStaker: DeployFunction = async function (hre: HardhatRuntimeEn
 
   // Fund the staker contract with initial reward pool (optional)
   console.log("\n💰 Setting up initial reward pool...");
-  
+
   const deployerBalance = await intuitContract.balanceOf(deployer);
   console.log(`Deployer INTUIT balance: ${hre.ethers.formatEther(deployerBalance)}`);
 
-  if (deployerBalance > 0n) {
-    // Allocate 18% of total supply as initial reward pool (180K INTUIT)
-    const totalSupply = await intuitContract.TOTAL_SUPPLY();
-    const rewardPoolAmount = totalSupply * 18n / 100n; // 18% = 180K INTUIT
-    
-    console.log(`Funding reward pool with: ${hre.ethers.formatEther(rewardPoolAmount)} INTUIT`);
-    
-    // Approve staker contract to receive reward tokens
-    const approveTx = await intuitContract.approve(intuitStaker.address, rewardPoolAmount);
-    await approveTx.wait();
-    console.log(`✅ Approved reward pool funding`);
-    
-    // Fund the reward pool
-    const fundTx = await stakerContract.fundRewardPool(rewardPoolAmount);
-    await fundTx.wait();
-    console.log(`✅ Reward pool funded with ${hre.ethers.formatEther(rewardPoolAmount)} INTUIT`);
-  } else {
-    console.log("⚠️  No INTUIT tokens available for initial reward pool");
-  }
+  console.log("⚠️  Skipping reward pool funding - handled by IntuitNoVesting deployment script");
 
   // Display staking contract info
   console.log("\n📊 Staking Contract Info:");
@@ -66,10 +49,11 @@ const deployIntuitStaker: DeployFunction = async function (hre: HardhatRuntimeEn
   console.log(`Reward Rate: 12.5% APY`);
   console.log(`Lock Period: 7 days`);
   console.log(`Early Unstake Fee: 2%`);
-  
+
   const stakingStatus = await stakerContract.getStakingStatus();
-  const [currentStaked, thresholdAmount, timeRemaining, isCompleted, withdrawalsOpen, currentRewardPool] = stakingStatus;
-  
+  const [currentStaked, thresholdAmount, timeRemaining, isCompleted, withdrawalsOpen, currentRewardPool] =
+    stakingStatus;
+
   console.log(`\nCurrent Status:`);
   console.log(`- Time Remaining: ${timeRemaining} seconds`);
   console.log(`- Current Staked: ${hre.ethers.formatEther(currentStaked)} INTUIT`);
@@ -89,4 +73,5 @@ const deployIntuitStaker: DeployFunction = async function (hre: HardhatRuntimeEn
 
 export default deployIntuitStaker;
 deployIntuitStaker.tags = ["IntuitStaker"];
-deployIntuitStaker.dependencies = ["Intuit"];
+deployIntuitStaker.dependencies = ["IntuitNoVesting"];
+deployIntuitStaker.id = "deploy_intuit_staker_standalone";

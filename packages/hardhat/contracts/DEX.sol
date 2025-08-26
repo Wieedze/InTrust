@@ -95,11 +95,11 @@ contract DEX {
         require(msg.value > 0, "cannot swap 0 ETH");
         uint256 ethReserve = address(this).balance - msg.value;
         uint256 tokenReserve = token.balanceOf(address(this));
-        uint256 tokenOutput = price(msg.value, ethReserve, tokenReserve);
+        uint256 tokenOut = price(msg.value, ethReserve, tokenReserve);
 
-        require(token.transfer(msg.sender, tokenOutput), "ethToToken(): reverted swap.");
-        emit EthToTokenSwap(msg.sender, tokenOutput, msg.value);
-        return tokenOutput;
+        require(token.transfer(msg.sender, tokenOut), "ethToToken(): reverted swap.");
+        emit EthToTokenSwap(msg.sender, tokenOut, msg.value);
+        return tokenOut;
     }
 
     /**
@@ -109,13 +109,13 @@ contract DEX {
         require(tokenInput > 0, "cannot swap 0 tokens");
         uint256 tokenReserve = token.balanceOf(address(this));
         uint256 ethReserve = address(this).balance;
-        uint256 ethOutput = price(tokenInput, tokenReserve, ethReserve);
+        uint256 ethOut = price(tokenInput, tokenReserve, ethReserve);
 
         require(token.transferFrom(msg.sender, address(this), tokenInput), "tokenToEth(): reverted swap.");
-        (bool sent, ) = msg.sender.call{value: ethOutput}("");
+        (bool sent, ) = msg.sender.call{value: ethOut}("");
         require(sent, "tokenToEth: revert in transferring eth to you!");
-        emit TokenToEthSwap(msg.sender, tokenInput, ethOutput);
-        return ethOutput;
+        emit TokenToEthSwap(msg.sender, tokenInput, ethOut);
+        return ethOut;
     }
 
     /**
@@ -152,13 +152,13 @@ contract DEX {
 
         ethWithdrawn = amount * ethReserve / totalLiquidity;
 
-        uint256 tokenAmount = amount * tokenReserve / totalLiquidity;
+        uint256 tokenWithdrawn = amount * tokenReserve / totalLiquidity;
         liquidity[msg.sender] -= amount;
         totalLiquidity -= amount;
         (bool sent, ) = payable(msg.sender).call{value: ethWithdrawn}("");
         require(sent, "withdraw(): revert in transferring eth to you!");
-        require(token.transfer(msg.sender, tokenAmount));
-        emit LiquidityRemoved(msg.sender, amount, tokenAmount, ethWithdrawn);
-        return (ethWithdrawn, tokenAmount);
+        require(token.transfer(msg.sender, tokenWithdrawn));
+        emit LiquidityRemoved(msg.sender, amount, tokenWithdrawn, ethWithdrawn);
+        return (ethWithdrawn, tokenWithdrawn);
     }
 }
