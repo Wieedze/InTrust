@@ -122,7 +122,11 @@ contract DEXRouter is ReentrancyGuard {
         uint amountBMin,
         address to,
         uint deadline
-    ) external ensure(deadline) returns (uint amountA, uint amountB, uint liquidity) {
+    ) external nonReentrant ensure(deadline) returns (uint amountA, uint amountB, uint liquidity) {
+        require(tokenA != address(0) && tokenB != address(0), 'DEXRouter: INVALID_TOKEN');
+        require(amountADesired > 0 && amountBDesired > 0, 'DEXRouter: INVALID_AMOUNT');
+        require(to != address(0), 'DEXRouter: INVALID_TO_ADDRESS');
+        
         (amountA, amountB) = _addLiquidity(tokenA, tokenB, amountADesired, amountBDesired, amountAMin, amountBMin);
         address pair = pairFor(tokenA, tokenB);
         IERC20(tokenA).transferFrom(msg.sender, pair, amountA);
@@ -137,7 +141,12 @@ contract DEXRouter is ReentrancyGuard {
         uint amountETHMin,
         address to,
         uint deadline
-    ) external payable ensure(deadline) returns (uint amountToken, uint amountETH, uint liquidity) {
+    ) external payable nonReentrant ensure(deadline) returns (uint amountToken, uint amountETH, uint liquidity) {
+        require(token != address(0), 'DEXRouter: INVALID_TOKEN');
+        require(amountTokenDesired > 0, 'DEXRouter: INVALID_TOKEN_AMOUNT');
+        require(msg.value > 0, 'DEXRouter: INVALID_ETH_AMOUNT');
+        require(to != address(0), 'DEXRouter: INVALID_TO_ADDRESS');
+        
         (amountToken, amountETH) = _addLiquidity(
             token,
             WETH,
@@ -192,9 +201,14 @@ contract DEXRouter is ReentrancyGuard {
         address[] calldata path,
         address to,
         uint deadline
-    ) external ensure(deadline) returns (uint[] memory amounts) {
+    ) external nonReentrant ensure(deadline) returns (uint[] memory amounts) {
+        require(path.length >= 2, 'DEXRouter: INVALID_PATH');
+        require(amountIn > 0, 'DEXRouter: INVALID_AMOUNT');
+        require(to != address(0), 'DEXRouter: INVALID_TO_ADDRESS');
+        
         amounts = getAmountsOut(amountIn, path);
         require(amounts[amounts.length - 1] >= amountOutMin, 'DEXRouter: INSUFFICIENT_OUTPUT_AMOUNT');
+        
         IERC20(path[0]).transferFrom(msg.sender, pairFor(path[0], path[1]), amounts[0]);
         _swap(amounts, path, to);
         emit SwapTokensForTokens(amountIn, amounts[amounts.length - 1], path, to);
@@ -206,9 +220,14 @@ contract DEXRouter is ReentrancyGuard {
         address[] calldata path,
         address to,
         uint deadline
-    ) external ensure(deadline) returns (uint[] memory amounts) {
+    ) external nonReentrant ensure(deadline) returns (uint[] memory amounts) {
+        require(path.length >= 2, 'DEXRouter: INVALID_PATH');
+        require(amountOut > 0, 'DEXRouter: INVALID_AMOUNT');
+        require(to != address(0), 'DEXRouter: INVALID_TO_ADDRESS');
+        
         amounts = getAmountsIn(amountOut, path);
         require(amounts[0] <= amountInMax, 'DEXRouter: EXCESSIVE_INPUT_AMOUNT');
+        
         IERC20(path[0]).transferFrom(msg.sender, pairFor(path[0], path[1]), amounts[0]);
         _swap(amounts, path, to);
         emit SwapTokensForTokens(amounts[0], amountOut, path, to);
@@ -217,12 +236,18 @@ contract DEXRouter is ReentrancyGuard {
     function swapExactETHForTokens(uint amountOutMin, address[] calldata path, address to, uint deadline)
         external
         payable
+        nonReentrant
         ensure(deadline)
         returns (uint[] memory amounts)
     {
+        require(path.length >= 2, 'DEXRouter: INVALID_PATH');
         require(path[0] == WETH, 'DEXRouter: INVALID_PATH');
+        require(msg.value > 0, 'DEXRouter: INVALID_ETH_AMOUNT');
+        require(to != address(0), 'DEXRouter: INVALID_TO_ADDRESS');
+        
         amounts = getAmountsOut(msg.value, path);
         require(amounts[amounts.length - 1] >= amountOutMin, 'DEXRouter: INSUFFICIENT_OUTPUT_AMOUNT');
+        
         IWETH(WETH).deposit{value: amounts[0]}();
         assert(IWETH(WETH).transfer(pairFor(path[0], path[1]), amounts[0]));
         _swap(amounts, path, to);
@@ -231,12 +256,18 @@ contract DEXRouter is ReentrancyGuard {
     
     function swapExactTokensForETH(uint amountIn, uint amountOutMin, address[] calldata path, address to, uint deadline)
         external
+        nonReentrant
         ensure(deadline)
         returns (uint[] memory amounts)
     {
+        require(path.length >= 2, 'DEXRouter: INVALID_PATH');
         require(path[path.length - 1] == WETH, 'DEXRouter: INVALID_PATH');
+        require(amountIn > 0, 'DEXRouter: INVALID_AMOUNT');
+        require(to != address(0), 'DEXRouter: INVALID_TO_ADDRESS');
+        
         amounts = getAmountsOut(amountIn, path);
         require(amounts[amounts.length - 1] >= amountOutMin, 'DEXRouter: INSUFFICIENT_OUTPUT_AMOUNT');
+        
         IERC20(path[0]).transferFrom(msg.sender, pairFor(path[0], path[1]), amounts[0]);
         _swap(amounts, path, address(this));
         IWETH(WETH).withdraw(amounts[amounts.length - 1]);
