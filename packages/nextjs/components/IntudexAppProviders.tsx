@@ -21,12 +21,12 @@ const IntudexApp = ({ children }: { children: React.ReactNode }) => {
           {/* Logo and title on the left */}
           <div className="flex items-center gap-3">
             <img 
-              src="/intudex.png" 
-              alt="INTUDEX" 
+              src="/SwapTrust.png" 
+              alt="SwapTrust" 
               className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl"
             />
             <h1 className="text-lg sm:text-3xl font-bold text-white">
-              INTUDEX
+              TrustSwap
             </h1>
           </div>
           
