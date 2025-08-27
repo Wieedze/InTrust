@@ -31,7 +31,8 @@ function getContractNames(path: string) {
   return fs
     .readdirSync(path, { withFileTypes: true })
     .filter(dirent => dirent.isFile() && dirent.name.endsWith(".json"))
-    .map(dirent => dirent.name.split(".")[0]);
+    .map(dirent => dirent.name.split(".")[0])
+    .filter(name => name && !name.startsWith(".")); // Filter out empty names and dot files
 }
 
 function getActualSourcesForContract(sources: Record<string, any>, contractName: string) {

@@ -6,42 +6,58 @@ import { useAccount, useBalance, useWriteContract, useReadContract, useWaitForTr
 import { Card, CardContent } from "./ui/card";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { Info, X } from "lucide-react";
+import { Info, X, ChevronDown } from "lucide-react";
 import { Badge } from "./ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "./ui/tooltip";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
 
 export const StakeInterface = () => {
   const { address: connectedAddress } = useAccount();
   const [showStakingInfo, setShowStakingInfo] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
   
-  // Contract addresses for INTUITION testnet (Chain ID: 13579) - UPDATED with LATEST deployed contracts
-  const intuitAddress = "0x3Aa5ebB10DC797CAC828524e59A333d0A371443c"; // INTUIT token (LATEST)
-  const ttrustAddress = "0xA54b4E6e356b963Ee00d1C947f478d9194a1a210"; // TTRUST token
-  const stakerAddress = "0x59b670e9fA9D0A427751Af201D676719a970857b"; // IntuitStaker contract (LATEST)
+  // Working testnet addresses with staking rewards
+  const intuitStakingAddress = "0xCc70E3Acd7764e8c376b11A05c47eAFf05a1e115"; // INTUIT Staking contract
+  const trustStakingAddress = "0x546a4E6BF6195A809632B528de28691BBFDb7507"; // TRUST Staking contract (FIXED)
   
-  // Available tokens for staking - IntuitStaker only supports INTUIT tokens
+  // Available staking tokens
   const stakingTokens = [
-    { 
-      symbol: "INTUIT", 
-      name: "Intuit Token", 
-      address: intuitAddress,
-      logo: "/intudex.png",
-      apy: "12.5%",
-      lockPeriod: "Immediate unstaking available"
-    },
-    // Note: TTRUST staking not supported by current IntuitStaker contract
-    // { 
-    //   symbol: "TTRUST", 
-    //   name: "Testnet TRUST", 
-    //   address: ttrustAddress,
-    //   logo: "/intuition.png",
-    //   apy: "8.5%",
-    //   lockPeriod: "14 days"
-    // },
+    { symbol: "TRUST", name: "TRUST Token", logo: "/trust.png", address: "native", decimals: 18, isNative: true },
+    { symbol: "INTUIT", name: "Intuit Token", logo: "/intuit.png?v=1", address: "0xe8bD8876CB6f97663c668faae65C4Da579FfA0B5", decimals: 18, isNative: false }
   ];
+
+  const trustStakingAbi = [
+    {
+      name: "stake",
+      type: "function",
+      stateMutability: "payable",
+      inputs: [],
+      outputs: []
+    },
+    {
+      name: "unstake",
+      type: "function", 
+      stateMutability: "nonpayable",
+      inputs: [{ name: "amount", type: "uint256" }],
+      outputs: []
+    },
+    {
+      name: "getUserStake",
+      type: "function",
+      stateMutability: "view",
+      inputs: [{ name: "user", type: "address" }],
+      outputs: [{ name: "amount", type: "uint256" }, { name: "pendingRewards", type: "uint256" }]
+    },
+    {
+      name: "claimRewards",
+      type: "function",
+      stateMutability: "nonpayable",
+      inputs: [],
+      outputs: []
+    }
+  ] as const;
   
-  const [selectedToken, setSelectedToken] = useState(stakingTokens[0]); // Default to INTUIT
+  const [selectedToken, setSelectedToken] = useState(stakingTokens[0]); // Default to TRUST
   const [stakeAmount, setStakeAmount] = useState("");
   const [activeTab, setActiveTab] = useState<"stake" | "unstake">("stake");
   const [transactionStep, setTransactionStep] = useState<"idle" | "approving" | "staking" | "confirmed">("idle");
@@ -64,7 +80,7 @@ export const StakeInterface = () => {
     }
   ] as const;
 
-  const stakerAbi = [
+  const intuitStakingAbi = [
     {
       name: "stake",
       type: "function",
@@ -121,44 +137,36 @@ export const StakeInterface = () => {
     }
   ] as const;
 
-  // Read TTRUST balance - try both native and ERC20 like swap interface
-  const { data: ttrustBalanceERC20, refetch: refetchTtrustBalanceERC20 } = useBalance({
-    address: connectedAddress,
-    token: ttrustAddress as `0x${string}`,
-    chainId: 13579, // INTUITION testnet
-    query: { enabled: !!connectedAddress }
-  });
+  // Read token balance dynamically based on selected token
+  const { data: tokenBalance, refetch: refetchTokenBalance } = selectedToken.isNative
+    ? useBalance({ 
+        address: connectedAddress, 
+        chainId: 13579,
+        query: { enabled: !!connectedAddress }
+      })
+    : useReadContract({
+        address: selectedToken.address as `0x${string}`,
+        abi: erc20Abi,
+        functionName: "balanceOf",
+        args: [connectedAddress as `0x${string}`],
+        query: { enabled: !!connectedAddress }
+      });
 
-  const { data: ttrustBalanceNative, refetch: refetchTtrustBalanceNative } = useBalance({
-    address: connectedAddress,
-    chainId: 13579, // INTUITION testnet
-    query: { enabled: !!connectedAddress }
-  });
-
-  // Read INTUIT balance (using useReadContract like swap interface)
-  const { data: intuitBalance, refetch: refetchIntuitBalance } = useReadContract({
-    address: intuitAddress as `0x${string}`,
-    abi: erc20Abi,
-    functionName: "balanceOf",
-    args: [connectedAddress as `0x${string}`],
-    query: { enabled: !!connectedAddress && selectedToken.symbol === "INTUIT" }
-  });
-
-  // Read user stake info
+  // Read user stake info (use appropriate contract based on selected token)
   const { data: userStakeInfo, refetch: refetchStakeInfo } = useReadContract({
-    address: stakerAddress as `0x${string}`,
-    abi: stakerAbi,
-    functionName: "getUserStakeInfo",
+    address: selectedToken.isNative ? trustStakingAddress : intuitStakingAddress,
+    abi: selectedToken.isNative ? trustStakingAbi : intuitStakingAbi,
+    functionName: "getUserStake",
     args: [connectedAddress as `0x${string}`],
     query: { enabled: !!connectedAddress }
   });
 
-  // Read staking status
-  const { data: stakingStatus, refetch: refetchStatus } = useReadContract({
-    address: stakerAddress as `0x${string}`,
-    abi: stakerAbi,
-    functionName: "getStakingStatus",
-    args: []
+  // Read pool info for INTUIT staking
+  const { data: poolInfo, refetch: refetchPoolInfo } = useReadContract({
+    address: intuitStakingAddress as `0x${string}`,
+    abi: intuitStakingAbi,
+    functionName: "rewardRate",
+    query: { enabled: selectedToken.symbol === "INTUIT" }
   });
 
   // Write contract functions
@@ -173,36 +181,76 @@ export const StakeInterface = () => {
   useEffect(() => {
     if (isConfirmed) {
       setTransactionStep("confirmed");
-      // Refetch the appropriate balances based on selected token
-      if (selectedToken.symbol === "TTRUST") {
-        refetchTtrustBalanceNative();
-        refetchTtrustBalanceERC20();
-      } else {
-        refetchIntuitBalance();
-      }
+      // Refetch all data
+      refetchTokenBalance();
       refetchStakeInfo();
-      refetchStatus();
+      if (refetchPoolInfo) refetchPoolInfo();
+      
+      // Force additional refresh after 2 seconds for unstaking
+      setTimeout(() => {
+        refetchStakeInfo();
+        refetchTokenBalance();
+      }, 2000);
       
       setTimeout(() => {
         setTransactionStep("idle");
         setStakeAmount("");
       }, 3000);
     }
-  }, [isConfirmed, selectedToken.symbol]);
+  }, [isConfirmed, refetchTokenBalance, refetchStakeInfo, refetchPoolInfo]);
 
   const handleStake = async () => {
-    if (!stakeAmount) return;
+    console.log("🎯 Stake button clicked!");
+    console.log("📊 Stake data:", {
+      stakeAmount,
+      selectedToken: selectedToken.symbol,
+      tokenAddress: selectedToken.address,
+      intuitStakingAddress,
+      connectedAddress,
+      isConnected: !!connectedAddress
+    });
+    
+    if (!stakeAmount) {
+      console.log("❌ No stake amount");
+      return;
+    }
+    
+    if (!connectedAddress) {
+      console.log("❌ No connected address");
+      return;
+    }
     
     const amount = parseUnits(stakeAmount, 18);
+    console.log("💰 Amount to stake (wei):", amount.toString());
     
-    // Step 1: Approve selected tokens
-    setTransactionStep("approving");
-    writeContract({
-      address: selectedToken.address as `0x${string}`,
-      abi: erc20Abi,
-      functionName: "approve",
-      args: [stakerAddress as `0x${string}`, amount],
-    });
+    try {
+      if (selectedToken.isNative) {
+        // TRUST (native): Direct staking, no approval needed
+        console.log("✅ Staking TRUST (native token)...");
+        setTransactionStep("staking");
+        writeContract({
+          address: trustStakingAddress as `0x${string}`,
+          abi: trustStakingAbi,
+          functionName: "stake",
+          value: amount, // Send TRUST value directly
+          gas: 200000n,
+        });
+      } else {
+        // INTUIT (ERC20): Need approval first
+        console.log("✅ Starting approval for ERC20...");
+        setTransactionStep("approving");
+        writeContract({
+          address: selectedToken.address as `0x${string}`,
+          abi: erc20Abi,
+          functionName: "approve",
+          args: [intuitStakingAddress as `0x${string}`, amount],
+          gas: 100000n,
+        });
+      }
+    } catch (error) {
+      console.error("❌ Stake error:", error);
+      setTransactionStep("idle");
+    }
   };
 
   // Handle the second step of staking after approval
@@ -211,10 +259,11 @@ export const StakeInterface = () => {
       const amount = parseUnits(stakeAmount, 18);
       setTransactionStep("staking");
       writeContract({
-        address: stakerAddress as `0x${string}`,
-        abi: stakerAbi,
+        address: intuitStakingAddress as `0x${string}`,
+        abi: intuitStakingAbi,
         functionName: "stake",
         args: [amount],
+        gas: 200000n, // Limite gas stake
       });
     }
   };
@@ -223,31 +272,63 @@ export const StakeInterface = () => {
     if (!stakeAmount) return;
     
     const amount = parseUnits(stakeAmount, 18);
-    writeContract({
-      address: stakerAddress as `0x${string}`,
-      abi: stakerAbi,
-      functionName: "unstake",
-      args: [amount],
+    console.log("🔄 Unstaking:", {
+      token: selectedToken.symbol,
+      amount: stakeAmount,
+      amountWei: amount.toString(),
+      isNative: selectedToken.isNative
     });
+    
+    try {
+      setTransactionStep("staking"); // Reuse "staking" step for unstaking UI
+      
+      if (selectedToken.isNative) {
+        // TRUST unstaking via TrustStaking contract
+        writeContract({
+          address: trustStakingAddress as `0x${string}`,
+          abi: trustStakingAbi,
+          functionName: "unstake",
+          args: [amount],
+          gas: 200000n,
+        });
+      } else {
+        // INTUIT unstaking via IntuitStaking contract
+        writeContract({
+          address: intuitStakingAddress as `0x${string}`,
+          abi: intuitStakingAbi,
+          functionName: "unstake",
+          args: [amount],
+          gas: 200000n,
+        });
+      }
+    } catch (error) {
+      console.error("❌ Unstake error:", error);
+      setTransactionStep("idle");
+    }
   };
 
   const handleClaimRewards = async () => {
-    writeContract({
-      address: stakerAddress as `0x${string}`,
-      abi: stakerAbi,
-      functionName: "claimRewards",
-      args: [],
-    });
+    try {
+      if (selectedToken.isNative) {
+        // TRUST rewards via TrustStaking contract
+        writeContract({
+          address: trustStakingAddress as `0x${string}`,
+          abi: trustStakingAbi,
+          functionName: "claimRewards",
+        });
+      } else {
+        // INTUIT rewards via IntuitStaking contract
+        writeContract({
+          address: intuitStakingAddress as `0x${string}`,
+          abi: intuitStakingAbi,
+          functionName: "claimRewards",
+        });
+      }
+    } catch (error) {
+      console.error("❌ Claim rewards error:", error);
+    }
   };
 
-  const handleExecute = async () => {
-    writeContract({
-      address: stakerAddress as `0x${string}`,
-      abi: stakerAbi,
-      functionName: "execute",
-      args: [],
-    });
-  };
 
   // Auto-proceed to staking after approval
   useEffect(() => {
@@ -257,49 +338,79 @@ export const StakeInterface = () => {
   }, [transactionStep, isConfirmed]);
 
   const getTokenBalance = () => {
-    if (selectedToken.symbol === "TTRUST") {
-      // Try native balance first (since TTRUST might be the native token), then fall back to ERC20
-      const balance = ttrustBalanceNative?.value || ttrustBalanceERC20?.value;
-      return balance ? formatEther(balance) : "0";
-    } else {
-      return intuitBalance ? formatEther(intuitBalance) : "0";
+    console.log(`💰 Balance pour ${selectedToken.symbol}:`, {
+      tokenBalance,
+      isNative: selectedToken.isNative,
+      address: selectedToken.address,
+      connected: !!connectedAddress
+    });
+    
+    if (!tokenBalance) return "0";
+    
+    if (selectedToken.isNative && tokenBalance?.value) {
+      const balance = formatEther(tokenBalance.value);
+      console.log(`✅ Balance native ${selectedToken.symbol}:`, balance);
+      return balance;
     }
+    
+    const balanceValue = tokenBalance?.value || tokenBalance;
+    if (!balanceValue) return "0";
+    
+    if (selectedToken.decimals === 18) {
+      const balance = formatEther(balanceValue);
+      console.log(`✅ Balance ERC20 ${selectedToken.symbol}:`, balance);
+      return balance;
+    }
+    return (Number(balanceValue) / Math.pow(10, selectedToken.decimals)).toString();
   };
 
   const getStakingData = () => {
-    if (!stakingStatus || !userStakeInfo) {
+    if (!userStakeInfo) {
       return {
         totalStaked: "0",
         userStaked: "0",
-        apy: "12.5",
         rewards: "0",
         lockPeriod: "Immediate unstaking",
-        threshold: "10,000",
-        timeLeft: "0",
-        progress: 0,
-        canExecute: false
+        minStakeAmount: "0"
       };
     }
 
-    const [currentStaked, thresholdAmount, timeRemaining, isCompleted, withdrawalsOpen, currentRewardPool] = stakingStatus;
-    const [stakedAmount, stakeTime, pendingRewards, canUnstakeWithoutFee] = userStakeInfo;
-
-    const progress = Number(formatEther(currentStaked)) / Number(formatEther(thresholdAmount)) * 100;
-    const canExecute = timeRemaining === 0n && !isCompleted;
-
-    return {
-      totalStaked: Number(formatEther(currentStaked)).toLocaleString(),
-      userStaked: formatEther(stakedAmount),
-      apy: "12.5",
-      rewards: formatEther(pendingRewards),
-      lockPeriod: "7 days",
-      threshold: Number(formatEther(thresholdAmount)).toLocaleString(),
-      timeLeft: Number(timeRemaining),
-      progress: Math.min(progress, 100),
-      canExecute,
-      isCompleted,
-      withdrawalsOpen
-    };
+    if (selectedToken.isNative) {
+      // TrustStaking format: [amount, pendingRewards]
+      const [stakedAmount, pendingRewards] = userStakeInfo;
+      return {
+        totalStaked: "N/A", // Not available in TrustStaking
+        userStaked: formatEther(stakedAmount || 0n),
+        rewards: formatEther(pendingRewards || 0n),
+        lockPeriod: "Immediate unstaking",
+        minStakeAmount: "1.0",
+        canUnstake: true,
+        isActive: true
+      };
+    } else {
+      // IntuitStaking format: [stakedAmount, stakeTime, pendingRewards, canUnstake]
+      if (!poolInfo) {
+        return {
+          totalStaked: "0",
+          userStaked: "0",
+          rewards: "0",
+          lockPeriod: "Immediate unstaking",
+          minStakeAmount: "0"
+        };
+      }
+      
+      const [rewardRate, totalStaked, minStakeAmount, lockPeriod, isActive] = poolInfo;
+      const [stakedAmount, stakeTime, pendingRewards, canUnstake] = userStakeInfo;
+      return {
+        totalStaked: Number(formatEther(totalStaked)).toLocaleString(),
+        userStaked: formatEther(stakedAmount),
+        rewards: formatEther(pendingRewards),
+        lockPeriod: lockPeriod === 0n ? "Immediate unstaking" : `${Number(lockPeriod) / (24 * 60 * 60)} days lock`,
+        minStakeAmount: formatEther(minStakeAmount),
+        canUnstake,
+        isActive
+      };
+    }
   };
 
   const stakingData = getStakingData();
@@ -344,7 +455,36 @@ export const StakeInterface = () => {
         <CardContent className="p-6">
           {/* Header */}
           <div className="text-center mb-6">
-            <h1 className="text-2xl font-bold text-white mb-2">{selectedToken.symbol} Staking</h1>
+            <h1 className="text-2xl font-bold text-white mb-4">Universal Staking</h1>
+            
+            {/* Token Selector */}
+            <div className="flex justify-center mb-4">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button className="bg-white/10 hover:bg-white/20 text-white border-white/20">
+                    <img src={selectedToken.logo} alt={selectedToken.symbol} className="w-5 h-5 mr-2 rounded-full" />
+                    {selectedToken.symbol}
+                    <ChevronDown className="w-4 h-4 ml-2" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="bg-gray-800 border-gray-700">
+                  {stakingTokens.map((token) => (
+                    <DropdownMenuItem
+                      key={token.address}
+                      onClick={() => setSelectedToken(token)}
+                      className="text-white hover:bg-gray-700"
+                    >
+                      <img src={token.logo} alt={token.symbol} className="w-4 h-4 mr-2 rounded-full" />
+                      <div>
+                        <div>{token.symbol}</div>
+                        <div className="text-xs text-gray-500">{token.name}</div>
+                      </div>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+            
             <p className="text-gray-400 text-sm">Stake {selectedToken.symbol} tokens to earn rewards</p>
           </div>
 
@@ -429,7 +569,7 @@ export const StakeInterface = () => {
                     </TooltipContent>
                   </Tooltip>
                 </div>
-                <span className="text-white font-semibold">{selectedToken.apy}</span>
+                <span className="text-white font-semibold">Variable</span>
               </div>
               <div className="flex flex-col">
                 <div className="flex items-center gap-1">
@@ -468,6 +608,16 @@ export const StakeInterface = () => {
             onClick={activeTab === "stake" ? handleStake : handleUnstake}
             disabled={!stakeAmount || isLoading || !connectedAddress}
             className="w-full bg-white hover:bg-gray-200 text-black font-semibold py-3 rounded-xl text-base"
+            onMouseEnter={() => {
+              console.log(`🔘 Bouton ${activeTab}:`, {
+                stakeAmount,
+                hasStakeAmount: !!stakeAmount,
+                isLoading,
+                connectedAddress: !!connectedAddress,
+                disabled: !stakeAmount || isLoading || !connectedAddress,
+                balance: getTokenBalance()
+              });
+            }}
           >
             {isLoading ? (
               <span className="flex items-center justify-center gap-2">

@@ -61,16 +61,35 @@ const deployIntuitNoVesting: DeployFunction = async function (hre: HardhatRuntim
 
   console.log(`✅ INTUIT Token deployed at: ${intuitToken.address}`);
 
-  // Step 2: Deploy DEX Contract
-  console.log("\n🔄 Step 2: Deploying DEX Contract...");
-  const intuitDEX = await deploy("IntuitDEX", {
+  // Step 2: Deploy Factory DEX System
+  console.log("\n🔄 Step 2: Deploying Factory DEX System...");
+  
+  // Deploy WETH
+  const weth = await deploy("WETH", {
     from: deployer,
-    args: [intuitToken.address],
+    args: [],
     log: true,
     autoMine: true,
   });
-
-  console.log(`✅ DEX deployed at: ${intuitDEX.address}`);
+  console.log(`✅ WETH deployed at: ${weth.address}`);
+  
+  // Deploy Factory
+  const dexFactory = await deploy("DEXFactory", {
+    from: deployer,
+    args: [deployer], // feeToSetter
+    log: true,
+    autoMine: true,
+  });
+  console.log(`✅ DEX Factory deployed at: ${dexFactory.address}`);
+  
+  // Deploy Router
+  const dexRouter = await deploy("DEXRouter", {
+    from: deployer,
+    args: [dexFactory.address, weth.address],
+    log: true,
+    autoMine: true,
+  });
+  console.log(`✅ DEX Router deployed at: ${dexRouter.address}`);
 
   // Step 3: Deploy Staking Contract
   console.log("\n🏦 Step 3: Deploying Staking Contract...");
@@ -87,7 +106,8 @@ const deployIntuitNoVesting: DeployFunction = async function (hre: HardhatRuntim
   console.log("\n💰 Step 4: Distributing tokens according to tokenomics...");
   
   const tokenContract = await hre.ethers.getContractAt("Intuit", intuitToken.address);
-  const dexContract = await hre.ethers.getContractAt("IntuitDEX", intuitDEX.address);
+  const routerContract = await hre.ethers.getContractAt("DEXRouter", dexRouter.address);
+  const factoryContract = await hre.ethers.getContractAt("DEXFactory", dexFactory.address);
 
   // Send 7% to dev wallet
   console.log(`\n📤 Sending ${hre.ethers.formatEther(DEV_ALLOCATION)} INTUIT to dev wallet...`);
@@ -114,21 +134,35 @@ const deployIntuitNoVesting: DeployFunction = async function (hre: HardhatRuntim
     return false;
   }
 
-  // Approve DEX to spend INTUIT tokens
-  console.log("\n📝 Approving DEX to spend INTUIT...");
-  const approveTx = await tokenContract.approve(intuitDEX.address, intuitLiquidity);
+  // Create WETH/INTUIT pair
+  console.log("\n🔗 Creating WETH/INTUIT pair...");
+  const createPairTx = await factoryContract.createPair(weth.address, intuitToken.address);
+  await createPairTx.wait();
+  const pairAddress = await factoryContract.getPair(weth.address, intuitToken.address);
+  console.log(`✅ Pair created at: ${pairAddress}`);
+
+  // Approve Router to spend INTUIT tokens
+  console.log("\n📝 Approving Router to spend INTUIT...");
+  const approveTx = await tokenContract.approve(dexRouter.address, intuitLiquidity);
   await approveTx.wait();
   console.log("✅ INTUIT spending approved");
 
-  // Initialize DEX
-  console.log("\n🚀 Initializing DEX...");
-  const initTx = await dexContract.init(intuitLiquidity, {
-    value: ttrustLiquidity
-  });
+  // Add initial liquidity
+  console.log("\n🚀 Adding initial liquidity...");
+  const deadline = Math.floor(Date.now() / 1000) + 1200; // 20 minutes
+  const addLiquidityTx = await routerContract.addLiquidityETH(
+    intuitToken.address,
+    intuitLiquidity,
+    0, // amountTokenMin
+    0, // amountETHMin
+    deployer, // to
+    deadline,
+    { value: ttrustLiquidity }
+  );
   
-  console.log(`Transaction hash: ${initTx.hash}`);
-  await initTx.wait();
-  console.log("✅ DEX initialized successfully!");
+  console.log(`Transaction hash: ${addLiquidityTx.hash}`);
+  await addLiquidityTx.wait();
+  console.log("✅ Initial liquidity added successfully!");
 
   // Step 6: Setup staking reward pool (18% of total supply)
   console.log("\n🎁 Step 6: Setting up staking reward pool...");
@@ -148,8 +182,9 @@ const deployIntuitNoVesting: DeployFunction = async function (hre: HardhatRuntim
   // Step 7: Verify final setup
   console.log("\n📊 Final Status:");
   
-  const [ttrustReserve, intuitReserve] = await dexContract.getReserves();
-  const totalLiquidity = await dexContract.totalLiquidity();
+  const pairContract = await hre.ethers.getContractAt("DEXPair", pairAddress);
+  const [ttrustReserve, intuitReserve] = await pairContract.getReserves();
+  const totalLiquidity = await pairContract.totalLiquidity();
   const finalDeployerBalance = await tokenContract.balanceOf(deployer);
   
   console.log(`\nDEX Reserves:`);
@@ -175,7 +210,10 @@ const deployIntuitNoVesting: DeployFunction = async function (hre: HardhatRuntim
   console.log("\n🎉 DEPLOYMENT COMPLETE!");
   console.log("========================");
   console.log(`🪙 INTUIT Token: ${intuitToken.address}`);
-  console.log(`🔄 DEX: ${intuitDEX.address}`);
+  console.log(`🏭 DEX Factory: ${dexFactory.address}`);
+  console.log(`🔄 DEX Router: ${dexRouter.address}`);
+  console.log(`💰 WETH: ${weth.address}`);
+  console.log(`🔗 WETH/INTUIT Pair: ${pairAddress}`);
   console.log(`🏦 Staker: ${intuitStaker.address}`);
   
   console.log("\n✅ All systems ready:");
@@ -187,13 +225,15 @@ const deployIntuitNoVesting: DeployFunction = async function (hre: HardhatRuntim
   
   console.log("\n🔗 Contract Verification Commands:");
   console.log(`npx hardhat verify --network intuition ${intuitToken.address}`);
-  console.log(`npx hardhat verify --network intuition ${intuitDEX.address} ${intuitToken.address}`);
+  console.log(`npx hardhat verify --network intuition ${dexFactory.address} ${deployer}`);
+  console.log(`npx hardhat verify --network intuition ${dexRouter.address} ${dexFactory.address} ${weth.address}`);
+  console.log(`npx hardhat verify --network intuition ${weth.address}`);
   console.log(`npx hardhat verify --network intuition ${intuitStaker.address} ${intuitToken.address}`);
 
   return true;
 };
 
 export default deployIntuitNoVesting;
-deployIntuitNoVesting.tags = ["IntuitNoVesting", "Intuit", "IntuitDEX", "IntuitStaker"];
+deployIntuitNoVesting.tags = ["IntuitNoVesting", "Intuit", "DEXFactory", "DEXRouter", "WETH", "IntuitStaker"];
 deployIntuitNoVesting.dependencies = [];
 deployIntuitNoVesting.id = "deploy_intuit_no_vesting";

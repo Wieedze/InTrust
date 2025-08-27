@@ -1,207 +1,190 @@
-# INTUDEX 🚀
+# DEX Platform 🚀
 
-**The Premier DEX and Staking Platform for INTUIT Tokens on Intuition Blockchain**
+**Decentralized Exchange and Staking Platform for Intuition Blockchain**
 
-## What is INTUDEX?
+## What is this DEX?
 
-INTUDEX is a comprehensive DeFi platform combining a **Decentralized Exchange (DEX)** with an innovative **single-sided staking protocol** for INTUIT tokens on the Intuition blockchain.
+This is a streamlined DeFi platform combining a **Decentralized Exchange (DEX)** with **native TRUST and INTUIT token staking** on the Intuition blockchain. Built for simplicity and efficiency.
 
 ## 🎯 Core Features
 
-- **🔄 Universal DEX Trading**: Trade ANY ERC20 tokens using Factory Pattern
-- **🏭 Factory Pattern**: Create trading pairs for any token combination
-- **💎 Single-Sided Staking**: Stake INTUIT tokens without impermanent loss
-- **🎁 Collective Rewards**: 12.5% APY when community reaches 10,000+ INTUIT threshold
-- **⚡ Multi-Hop Swaps**: Automatic routing through multiple pairs
-- **🏆 Fair Distribution**: Proportional rewards based on stake size
+- **🔄 TRUST ↔ INTUIT Trading**: Direct swapping between native TRUST and INTUIT tokens
+- **📈 Real-time Conversion**: Live price quotes and conversion rates
+- **💰 TRUST Staking**: Stake native TRUST tokens to earn INTUIT rewards  
+- **🏦 INTUIT Staking**: Stake INTUIT tokens to earn INTUIT rewards
+- **⚡ No Approval for TRUST**: Native token staking without ERC20 approvals
+- **🎁 Instant Rewards**: Claim accumulated rewards anytime
 
-## 📊 Tokenomics
+## 📊 Token Information
 
-| Allocation | Percentage | Amount | Purpose |
-|------------|------------|--------|---------|
-| **DEX Liquidity** | 60% | 600,000 | Initial trading liquidity |
-| **Staking Rewards** | 18% | 180,000 | Community staking incentives |
-| **Governance** | 15% | 150,000 | Future governance & airdrops |
-| **Development** | 7% | 70,000 | Development team allocation |
+### TRUST Token (Native)
+- **Type**: Native blockchain token (like ETH)  
+- **Use**: Transaction fees, trading, staking
+- **Rewards**: Can be staked to earn INTUIT
 
-**Total Supply**: 1,000,000 INTUIT tokens
+### INTUIT Token (ERC20)
+- **Total Supply**: 1,000,000 INTUIT
+- **Use**: Trading, staking, rewards
+- **Rewards**: Earned from staking both TRUST and INTUIT
 
 ## 🏗️ Smart Contracts
 
 ### Intuit.sol - ERC20 Token
 - Standard ERC20 with 1M total supply
-- Gas-optimized transfers and approvals
+- Used for trading and rewards
 
-### DEXFactory.sol - Universal DEX Factory
-- Create trading pairs for ANY ERC20 tokens
-- Factory Pattern implementation (Uniswap V2 style)
-- Automated pair discovery and management
+### DEXFactory.sol - DEX Factory  
+- Creates TRUST/INTUIT trading pairs
+- Uniswap V2 style implementation
 
 ### DEXRouter.sol - Trading Router
-- Simplified interface for token swaps
-- Multi-hop routing for complex trades
-- Optimal pricing across all pairs
+- Handles TRUST ↔ INTUIT swaps
+- Native ETH support for TRUST trades
+- Automatic slippage protection
 
-### DEXPair.sol - Individual Trading Pairs
-- Constant Product AMM (`x * y = k`)
-- Independent liquidity per pair
-- Fee collection and distribution
+### TrustStakingFixed.sol - TRUST Staking
+- Stake native TRUST tokens (payable)
+- Earn INTUIT rewards
+- No approval needed for native tokens
 
-### IntuitStaker.sol - Staking Protocol
-- Single-sided INTUIT staking
-- Collective 10,000 INTUIT threshold
-- Real-time reward calculations
-- Flexible unstaking
+### IntuitStaking.sol - INTUIT Staking  
+- Stake ERC20 INTUIT tokens
+- Earn INTUIT rewards
+- Requires token approval
 
 ## 🚀 Quick Start
 
 ```bash
 # Clone repository
-git clone https://github.com/coux-v/intudex.git
-cd intudex
+git clone https://github.com/your-username/dex-platform.git
+cd dex-platform
 
 # Install dependencies
-yarn install
+npm install
 
 # Start development
-yarn chain    # Terminal 1 - Local blockchain
-yarn deploy   # Terminal 2 - Deploy contracts  
-yarn start    # Terminal 3 - Frontend
+npm run dev
 ```
 
-## 🌐 Live Deployment
+## 🌐 Testnet Deployment
 
-- **Frontend**: [INTUDEX App](https://intudex-g54wlhjhp-baris-projects-49ea2d32.vercel.app)
-- **Network**: Intuition Blockchain (Chain ID: 13579)
+- **Network**: Intuition Testnet (Chain ID: 13579)
+- **RPC URL**: https://testnet.rpc.intuition.systems/http
 
-### Contract Addresses
+### Contract Addresses (Intuition Testnet)
 
-**Legacy Contracts (Testnet):**
 ```
-INTUIT Token:    0x3Aa5ebB10DC797CAC828524e59A333d0A371443c
-IntuitDEX:       0xc6e7DF5E7b4f2A278906862b61205850344D4e7d
-IntuitStaker:    0x59b670e9fA9D0A427751Af201D676719a970857b
-```
-
-**Factory Pattern (Local/Development):**
-```
-DEX Factory:     0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6
-DEX Router:      0x610178dA211FEF7D417bC0e6FeD39F05609AD788
-WETH:           0x8A791620dd6260079BF849Dc5567aDC3F2FdC318
-INTUIT Token:    0x5FbDB2315678afecb367f032d93F642f64180aa3
+INTUIT Token:           0xe8bD8876CB6f97663c668faae65C4Da579FfA0B5
+DEX Factory:            0x54D248E118983dDdDF4DAA605CBa832BA6F1eb4C  
+DEX Router:             0x42Af1bCF6BD4876421b27c2a7Fcd9C8315cDA121
+INTUIT Staking:         0xCc70E3Acd7764e8c376b11A05c47eAFf05a1e115
+TRUST Staking (Fixed):  0x546a4E6BF6195A809632B528de28691BBFDb7507
 ```
 
 ## 💡 How It Works
 
-### Universal DEX Trading
-1. **Trade Any Tokens**: Select from available ERC20 tokens
-2. **Auto-Pair Creation**: Pairs are created automatically if they don't exist
-3. **Multi-Hop Routing**: Seamless trading through multiple pairs
-4. **One-Click Swaps**: Execute trades with optimal pricing
+### TRUST ↔ INTUIT Trading
+1. **Connect Wallet**: Connect MetaMask to Intuition Testnet
+2. **Select Tokens**: Choose TRUST or INTUIT 
+3. **Enter Amount**: See real-time conversion in placeholder
+4. **Swap**: Execute trade with automatic slippage protection
 
-### Creating New Trading Pairs
-1. Go to **PAIRS** tab in the interface
-2. Select any two ERC20 tokens
-3. Click **"Create Pair"** 
-4. Start trading immediately!
+### TRUST Staking (Native)
+1. **Go to STAKE tab** and select TRUST
+2. **Enter Amount**: Minimum 1 TRUST
+3. **Stake**: No approval needed (native token)
+4. **Earn Rewards**: Accumulate INTUIT rewards over time
+5. **Unstake/Claim**: Withdraw stake or claim rewards anytime
 
-### Staking Process  
-1. Stake INTUIT tokens (single-sided)
-2. Help reach 10,000 INTUIT collective threshold
-3. Earn 12.5% APY when threshold is met
-4. Claim proportional rewards anytime
-5. Unstake immediately without penalties
+### INTUIT Staking (ERC20)
+1. **Go to STAKE tab** and select INTUIT  
+2. **Enter Amount**: Minimum 10 INTUIT
+3. **Approve**: Approve token spending first
+4. **Stake**: Stake approved INTUIT tokens
+5. **Earn Rewards**: Accumulate INTUIT rewards over time
 
-## 🔗 Adding New Tokens & Pairs
+## ⚙️ Configuration
 
-INTUDEX now supports **ANY ERC20 token** through the Factory Pattern! Here's how to add new tokens:
+### Adding Custom Tokens
+To add new tokens to the interface, edit the tokens array in:
+`packages/nextjs/components/UniversalDex.tsx`
 
-### Step 1: Add Token to Configuration
-In `packages/nextjs/utils/dexFactory.ts`:
 ```typescript
-export const AVAILABLE_TOKENS: Token[] = [
-  // Existing tokens...
-  {
-    symbol: "USDC",
-    name: "USD Coin",
-    address: "0xYourUSDCAddress...",
-    logo: "/usdc.png"
-  }
+const tokens = [
+  { symbol: "TRUST", name: "TRUST Token", logo: "/trust.png", address: "native", decimals: 18, isNative: true },
+  { symbol: "INTUIT", name: "Intuit Token", logo: "/intuit.png", address: "0xe8bD8876CB6f97663c668faae65C4Da579FfA0B5", decimals: 18, isNative: false },
+  // Add your token here
 ];
 ```
 
-### Step 2: Create Trading Pair
-1. Open INTUDEX interface
-2. Go to **PAIRS** tab
-3. Select your new token + any existing token
-4. Click **"Create Pair"**
-
-### Step 3: Start Trading
-- Your new pair appears automatically in **SWAP** tab
-- Add liquidity to enable trading
-- Enjoy seamless swaps!
-
-### Supported Token Examples
-- **Stablecoins**: USDC, USDT, DAI
-- **Wrapped Assets**: WETH, WBTC
-- **DeFi Tokens**: UNI, AAVE, COMP
-- **Custom Tokens**: Any ERC20 on your blockchain
+### MetaMask Network Configuration
+Add Intuition Testnet to MetaMask:
+```
+Network Name: Intuition Testnet
+RPC URL: https://testnet.rpc.intuition.systems/http
+Chain ID: 13579
+Currency Symbol: TRUST
+```
 
 ## 📈 Benefits
 
 **For Traders:**
-- **Universal Trading**: Swap ANY ERC20 tokens
-- **Factory Pattern**: Create pairs on-demand
-- **Multi-Hop Routing**: Optimal pricing through multiple pairs
-- **Deep Liquidity**: Independent pools per pair
-- **Instant Swaps**: Fast, secure transactions
+- **Direct TRUST ↔ INTUIT swaps**: No complex routing needed
+- **Real-time quotes**: See conversion rates instantly
+- **Native token support**: No wrapping needed for TRUST
+- **Low fees**: 0.3% trading fee
+- **Fast execution**: Instant swaps on Intuition network
 
 **For Stakers:**
-- No impermanent loss risk
-- High APY (12.5%)
-- Community-driven rewards
-- Flexible unstaking
+- **Dual staking options**: Stake both TRUST and INTUIT
+- **Flexible rewards**: Claim INTUIT rewards anytime  
+- **No lock periods**: Unstake immediately
+- **Native staking**: Stake TRUST without approvals
 
 ## 🔧 Tech Stack
 
-- **Frontend**: Next.js 15, Wagmi, RainbowKit, Tailwind CSS
-- **Contracts**: Solidity, Hardhat, OpenZeppelin
-- **Architecture**: Factory Pattern (Uniswap V2 style)
-- **Blockchain**: Intuition (Chain ID: 13579)
+- **Frontend**: Next.js 14, TypeScript, Wagmi, RainbowKit, Tailwind CSS
+- **Contracts**: Solidity ^0.8.19, Hardhat, OpenZeppelin
+- **Blockchain**: Intuition Testnet (Chain ID: 13579)
 - **Deployment**: Vercel (Frontend), Hardhat (Contracts)
 
 ## 🏗️ Architecture Overview
 
 ```
 ┌─────────────────┐    ┌─────────────────┐
-│   DEXFactory    │───▶│    DEXPair      │
-│   (Creates)     │    │  (TokenA/B)     │
+│   DEXRouter     │───▶│    DEXPair      │
+│ (TRUST/INTUIT)  │    │ (TRUST/INTUIT)  │
 └─────────────────┘    └─────────────────┘
          │                       │
          ▼                       ▼
 ┌─────────────────┐    ┌─────────────────┐
-│   DEXRouter     │───▶│   Liquidity     │
-│  (Simplifies)   │    │    Providers    │
+│ TrustStaking    │    │ IntuitStaking   │
+│ (Native stake)  │    │ (ERC20 stake)   │
 └─────────────────┘    └─────────────────┘
 ```
 
 ### Key Components:
-- **Factory**: Creates & manages all trading pairs
-- **Router**: Simplified interface for swaps & liquidity
-- **Pairs**: Individual AMM contracts per token pair  
-- **WETH**: Wrapped native token for trading
+- **DEXRouter**: Handles TRUST ↔ INTUIT swaps with native ETH support
+- **DEXPair**: AMM contract for TRUST/INTUIT trading pair
+- **TrustStaking**: Native TRUST staking for INTUIT rewards  
+- **IntuitStaking**: ERC20 INTUIT staking for INTUIT rewards
 
 ## 🔒 Security Features
 
-- Reentrancy protection
-- Access controls
-- Comprehensive testing
-- Secure wallet integration
+- **Reentrancy protection**: All external calls protected
+- **Access controls**: Owner functions properly restricted
+- **Input validation**: Amount and address validation
+- **Safe transfers**: Protected ERC20 and native transfers
+- **Fixed reward logic**: No phantom rewards after unstaking
 
-## 📞 Support
+## 🚀 Deployment to Vercel
 
-- **Issues**: [GitHub Issues](https://github.com/coux-v/intudex/issues)
-- **Documentation**: [Wiki](https://github.com/coux-v/intudex/wiki)
+1. **Build test**: `npm run build` (must pass)
+2. **Push to GitHub**: Commit all changes
+3. **Connect to Vercel**: Import your repository
+4. **Deploy**: Automatic deployment from main branch
+
+The app will work immediately - all contracts are already deployed on Intuition Testnet!
 
 ## 📄 License
 
@@ -209,4 +192,4 @@ MIT License - see [LICENSE](LICENSE) file
 
 ---
 
-**Built with ❤️ for the Intuition blockchain ecosystem**
+**Clean DEX Platform for Intuition Blockchain**

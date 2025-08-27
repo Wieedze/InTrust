@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { PairManager } from "./PairManager";
 import { ParticleBackground } from "./ParticleBackground";
 import { StakeInterface } from "./StakeInterface";
+import { TokenBridge } from "./TokenBridge";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Card, CardContent } from "./ui/card";
@@ -11,28 +11,20 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Input } from "./ui/input";
 import { Skeleton } from "./ui/skeleton";
 import { ArrowUpDown, ChevronDown, RefreshCw, Settings } from "lucide-react";
-import { formatEther, parseEther, parseUnits } from "viem";
-import { useAccount, useBalance, useReadContract, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
+import { formatEther, parseEther } from "viem";
+import { useAccount, useBalance, useReadContract, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 
-export const DexInterface = () => {
+export const UniversalDex = () => {
   const { address: connectedAddress } = useAccount();
 
-  // Contract addresses for localhost DEX
-  const dexRouterAddress = "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9"; // DEXRouter contract
-  const dexFactoryAddress = "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0"; // DEXFactory contract
-  const ttrustAddress = "0xA54b4E6e356b963Ee00d1C947f478d9194a1a210"; // TRUST token
-  const dexAddress = dexRouterAddress; // Main DEX contract
-  
-  // Token addresses from deployment
-  const wethAddress = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512";
-  const intuitAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
-  const wbtcAddress = "0xA51c1fc2f0D1a1b8494Ed1FE312d7C3a78Ed91C0";
-  const wusdcAddress = "0x0DCd1Bf9A1b36cE34237eEaFef220932846BCD82";
-  const wusdtAddress = "0x9A676e781A523b5d0C0e43731313A708CB607508";
+  // Working testnet addresses with liquidity
+  const dexRouterAddress = "0x42Af1bCF6BD4876421b27c2a7Fcd9C8315cDA121"; // DEXRouter
+  const dexFactoryAddress = "0x54D248E118983dDdDF4DAA605CBa832BA6F1eb4C";
 
-  // Token configuration with all major tokens
+  // Working token configuration with liquidity
   const tokens = [
-    { symbol: "INTUIT", name: "Intuit Token", logo: "/intudex.png?v=1", address: intuitAddress },
+    { symbol: "TRUST", name: "TRUST Token", logo: "/trust.png", address: "native", decimals: 18, isNative: true },
+    { symbol: "INTUIT", name: "Intuit Token", logo: "/intuit.png?v=1", address: "0xe8bD8876CB6f97663c668faae65C4Da579FfA0B5", decimals: 18, isNative: false }
   ];
 
   const [fromToken, setFromToken] = useState(tokens[0]);
@@ -43,335 +35,414 @@ export const DexInterface = () => {
   const [isPollingReserves, setIsPollingReserves] = useState(false);
   const [isCalculating, setIsCalculating] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
-  const [activeMode, setActiveMode] = useState<"SWAP" | "STAKE" | "PAIRS">("SWAP");
+  const [activeMode, setActiveMode] = useState<"SWAP" | "STAKE" | "BRIDGE">("SWAP");
   const [transactionStep, setTransactionStep] = useState<"idle" | "approving" | "swapping" | "confirmed">("idle");
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [txHash] = useState<string | undefined>();
-  const [isPostTxPolling, setIsPostTxPolling] = useState(false);
 
-  // Read contract data - try both native and ERC20 balance for TTRUST  
-  const { data: ttrustBalanceERC20, refetch: refetchTtrustBalanceERC20 } = useBalance({
-    address: connectedAddress,
-    token: ttrustAddress as `0x${string}`,
-    // chainId: localhost (default)
-  });
-
-  const { data: ttrustBalanceNative, refetch: refetchTtrustBalanceNative } = useBalance({
-    address: connectedAddress,
-    // chainId: localhost (default)  
-  });
-
-  // Direct contract read for INTUIT balance to avoid multicall issues
-  const {
-    data: intuitBalance,
-    error: intuitBalanceError,
-    isLoading: intuitBalanceLoading,
-    refetch: refetchIntuitBalance,
-  } = useReadContract({
-    address: intuitAddress as `0x${string}`,
-    abi: [
-      {
-        name: "balanceOf",
-        type: "function",
-        stateMutability: "view",
-        inputs: [{ name: "account", type: "address" }],
-        outputs: [{ name: "", type: "uint256" }],
-      },
-    ],
-    functionName: "balanceOf",
-    args: [connectedAddress as `0x${string}`],
-    query: { enabled: !!connectedAddress },
-  });
-
-  const { data: dexTtrustBalance, refetch: refetchTtrustBalance } = useBalance({
-    address: dexAddress as `0x${string}`,
-    // chainId: localhost (default)
-  });
-
-  // Direct contract read for DEX INTUIT balance to avoid multicall issues
-  const {
-    data: dexIntuitBalance,
-    error: dexIntuitBalanceError,
-    isLoading: dexIntuitBalanceLoading,
-    refetch: refetchDexIntuitBalance,
-  } = useReadContract({
-    address: intuitAddress as `0x${string}`,
-    abi: [
-      {
-        name: "balanceOf",
-        type: "function",
-        stateMutability: "view",
-        inputs: [{ name: "account", type: "address" }],
-        outputs: [{ name: "", type: "uint256" }],
-      },
-    ],
-    functionName: "balanceOf",
-    args: [dexAddress as `0x${string}`],
-  });
-
-  // Contract ABIs (simplified)
+  // ERC20 ABI for balance and approval
   const erc20Abi = [
+    {
+      name: "balanceOf",
+      type: "function",
+      stateMutability: "view",
+      inputs: [{ name: "account", type: "address" }],
+      outputs: [{ name: "", type: "uint256" }],
+    },
     {
       name: "approve",
       type: "function",
       stateMutability: "nonpayable",
       inputs: [
         { name: "spender", type: "address" },
-        { name: "amount", type: "uint256" },
+        { name: "amount", type: "uint256" }
       ],
       outputs: [{ name: "", type: "bool" }],
     },
-  ] as const;
-
-  const intuitDexAbi = [
     {
-      name: "swapTtrustForIntuit",
-      type: "function",
-      stateMutability: "payable",
-      inputs: [],
-      outputs: [{ name: "", type: "uint256" }],
-    },
-    {
-      name: "swapIntuitForTtrust",
-      type: "function",
-      stateMutability: "nonpayable",
-      inputs: [{ name: "intuitAmount", type: "uint256" }],
-      outputs: [{ name: "", type: "uint256" }],
-    },
-    {
-      name: "getAmountOut",
-      type: "function",
-      stateMutability: "pure",
-      inputs: [
-        { name: "inputAmount", type: "uint256" },
-        { name: "inputReserve", type: "uint256" },
-        { name: "outputReserve", type: "uint256" },
-      ],
-      outputs: [{ name: "", type: "uint256" }],
-    },
-    {
-      name: "getReserves",
+      name: "allowance",
       type: "function",
       stateMutability: "view",
-      inputs: [],
-      outputs: [
-        { name: "ttrustReserve", type: "uint256" },
-        { name: "intuitReserve", type: "uint256" },
+      inputs: [
+        { name: "owner", type: "address" },
+        { name: "spender", type: "address" }
       ],
-    },
-  ] as const;
+      outputs: [{ name: "", type: "uint256" }],
+    }
+  ];
 
-  // Write contract functions
+  // DEXRouter ABI (simplified)
+  const routerAbi = [
+    {
+      name: "WETH",
+      type: "function", 
+      stateMutability: "view",
+      inputs: [],
+      outputs: [{ name: "", type: "address" }],
+    },
+    {
+      name: "getAmountsOut",
+      type: "function",
+      stateMutability: "view",
+      inputs: [
+        { name: "amountIn", type: "uint256" },
+        { name: "path", type: "address[]" }
+      ],
+      outputs: [{ name: "amounts", type: "uint256[]" }],
+    },
+    {
+      name: "swapExactTokensForTokens",
+      type: "function",
+      stateMutability: "nonpayable",
+      inputs: [
+        { name: "amountIn", type: "uint256" },
+        { name: "amountOutMin", type: "uint256" },
+        { name: "path", type: "address[]" },
+        { name: "to", type: "address" },
+        { name: "deadline", type: "uint256" }
+      ],
+      outputs: [{ name: "amounts", type: "uint256[]" }],
+    },
+    {
+      name: "swapExactETHForTokens",
+      type: "function",
+      stateMutability: "payable",
+      inputs: [
+        { name: "amountOutMin", type: "uint256" },
+        { name: "path", type: "address[]" },
+        { name: "to", type: "address" },
+        { name: "deadline", type: "uint256" }
+      ],
+      outputs: [{ name: "amounts", type: "uint256[]" }],
+    },
+    {
+      name: "swapExactTokensForETH",
+      type: "function",
+      stateMutability: "nonpayable",
+      inputs: [
+        { name: "amountIn", type: "uint256" },
+        { name: "amountOutMin", type: "uint256" },
+        { name: "path", type: "address[]" },
+        { name: "to", type: "address" },
+        { name: "deadline", type: "uint256" }
+      ],
+      outputs: [{ name: "amounts", type: "uint256[]" }],
+    }
+  ];
+
+  // Get WETH address directly from router
+  const { data: wethAddress } = useReadContract({
+    address: dexRouterAddress as `0x${string}`,
+    abi: routerAbi,
+    functionName: "WETH",
+  });
+
+  // Get user balance for selected tokens (native vs ERC20)
+  const { data: fromTokenBalance, refetch: refetchFromBalance } = fromToken.isNative
+    ? useBalance({ address: connectedAddress, chainId: 13579 })
+    : useReadContract({
+        address: fromToken.address as `0x${string}`,
+        abi: erc20Abi,
+        functionName: "balanceOf",
+        args: [connectedAddress as `0x${string}`],
+        query: { enabled: !!connectedAddress && !!fromToken.address },
+      });
+
+  const { data: toTokenBalance, refetch: refetchToBalance } = toToken.isNative
+    ? useBalance({ address: connectedAddress, chainId: 13579 })
+    : useReadContract({
+        address: toToken.address as `0x${string}`,
+        abi: erc20Abi,
+        functionName: "balanceOf",
+        args: [connectedAddress as `0x${string}`],
+        query: { enabled: !!connectedAddress && !!toToken.address },
+      });
+
+  // Get allowance
+  const { data: allowance, refetch: refetchAllowance } = useReadContract({
+    address: fromToken.address as `0x${string}`,
+    abi: erc20Abi,
+    functionName: "allowance",
+    args: [connectedAddress as `0x${string}`, dexRouterAddress as `0x${string}`],
+    query: { enabled: !!connectedAddress },
+  });
+
+  // Helper function to parse amounts based on token decimals
+  const parseTokenAmount = (amount: string, decimals: number) => {
+    if (!amount || amount === "0") return BigInt(0);
+    if (decimals === 18) return parseEther(amount);
+    return BigInt(Math.floor(parseFloat(amount) * Math.pow(10, decimals)));
+  };
+
+  // Helper to get token address for DEX (use WETH for native TRUST)
+  const getTokenAddress = (token: typeof tokens[0]) => {
+    return token.isNative ? (wethAddress || "0x0") : token.address;
+  };
+
+  // Get quote from router
+  const { data: amountsOut, error: quoteError, isLoading: isQuoteLoading } = useReadContract({
+    address: dexRouterAddress as `0x${string}`,
+    abi: routerAbi,
+    functionName: "getAmountsOut",
+    args: [
+      parseTokenAmount(fromAmount, fromToken.decimals),
+      [getTokenAddress(fromToken), getTokenAddress(toToken)]
+    ],
+    query: { enabled: !!fromAmount && fromAmount !== "0" && parseFloat(fromAmount) > 0 && !!wethAddress },
+  });
+
+  // Debug logging (only when there's an amount)
+  if (fromAmount && parseFloat(fromAmount) > 0) {
+    console.log("Debug getAmountsOut:", {
+      fromAmount,
+      fromToken: fromToken.symbol,
+      toToken: toToken.symbol,
+      fromAddress: getTokenAddress(fromToken),
+      toAddress: getTokenAddress(toToken),
+      amountsOut,
+      quoteError: quoteError?.message,
+      isQuoteLoading
+    });
+  }
+
+
+  // Write contracts
   const { writeContract, isPending: isWritePending, data: writeData } = useWriteContract();
 
   // Wait for transaction receipt
-  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
+  const { isLoading: isConfirming, isSuccess: isConfirmed, isError: isTxError } = useWaitForTransactionReceipt({
     hash: writeData,
   });
 
-  // Real-time blockchain polling for pool reserves
+  // Update toAmount when quote changes with calculation delay for UX
   useEffect(() => {
-    const pollReserves = async () => {
-      setIsPollingReserves(true);
-      try {
-        await Promise.all([refetchTtrustBalance(), refetchDexIntuitBalance()]);
-      } catch (error) {
-        console.error("Error polling reserves:", error);
-      } finally {
-        setIsPollingReserves(false);
-      }
-    };
-
-    // Poll immediately on mount
-    pollReserves();
-
-    // Set up interval to poll every 10 seconds
-    const interval = setInterval(pollReserves, 10000);
-
-    return () => clearInterval(interval);
-  }, [refetchTtrustBalance, refetchDexIntuitBalance]);
-
-  // Initial loading state management
-  useEffect(() => {
-    if (dexTtrustBalance !== undefined && dexIntuitBalance !== undefined) {
-      setIsInitialLoading(false);
-    }
-  }, [dexTtrustBalance, dexIntuitBalance]);
-
-  // Calculate price for swaps
-  const calculatePrice = (inputAmount: string, inputReserve: bigint, outputReserve: bigint) => {
-    if (!inputAmount || !inputReserve || !outputReserve) return "0";
-
-    try {
-      const input = parseEther(inputAmount);
-      const inputWithFee = input * 997n;
-      const numerator = inputWithFee * outputReserve;
-      const denominator = inputReserve * 1000n + inputWithFee;
-      const output = numerator / denominator;
-      return formatEther(output);
-    } catch {
-      return "0";
-    }
-  };
-
-  // Update output amount when input changes
-  const handleFromAmountChange = (value: string) => {
-    setFromAmount(value);
-
-    if (value && dexTtrustBalance && dexIntuitBalance) {
+    if (amountsOut && Array.isArray(amountsOut) && amountsOut.length > 1) {
       setIsCalculating(true);
-
-      // Extended delay to show skeleton for 0.7 seconds
       setTimeout(() => {
-        const isTtrustToIntuit = fromToken.symbol === "TTRUST";
-        const outputAmount = isTtrustToIntuit
-          ? calculatePrice(value, dexTtrustBalance.value, dexIntuitBalance)
-          : calculatePrice(value, dexIntuitBalance, dexTtrustBalance.value);
+        const outputAmount = formatTokenAmount(amountsOut[1], toToken.decimals);
         setToAmount(outputAmount);
         setIsCalculating(false);
-      }, 700);
+      }, 500); // Délai réduit pour meilleure UX
     } else {
+      setToAmount("");
+      setIsCalculating(false);
+    }
+  }, [amountsOut, toToken.decimals]);
+
+  // Initial loading management
+  useEffect(() => {
+    if (amountsOut !== undefined) {
+      setIsInitialLoading(false);
+    }
+  }, [amountsOut]);
+
+  // Handle token swap positions
+  const handleSwapTokens = useCallback(() => {
+    setFromToken(toToken);
+    setToToken(fromToken);
+    setFromAmount(toAmount);
+    setToAmount("");
+  }, [fromToken, toToken, toAmount]);
+
+  // Handle input amount change with calculation delay
+  const handleFromAmountChange = (value: string) => {
+    setFromAmount(value);
+    if (!value) {
       setToAmount("");
       setIsCalculating(false);
     }
   };
 
-  // Swap token positions
-  const handleSwapTokens = () => {
-    setFromToken(toToken);
-    setToToken(fromToken);
-    setFromAmount(toAmount);
-    setToAmount(fromAmount);
-  };
-
-  // Handle swap execution
-  const handleSwap = async () => {
+  // Handle approve
+  const handleApprove = useCallback(async () => {
     if (!fromAmount) return;
-
-    if (fromToken.symbol === "TTRUST") {
-      // TTRUST to INTUIT swap (payable)
-      setTransactionStep("swapping");
-      writeContract({
-        address: dexAddress as `0x${string}`,
-        abi: intuitDexAbi,
-        functionName: "swapTtrustForIntuit",
-        args: [],
-        value: parseEther(fromAmount),
-      });
-    } else {
-      // INTUIT to TTRUST swap (requires approval first)
-      const amount = parseUnits(fromAmount, 18);
-
-      // Step 1: Approve
+    
+    try {
       setTransactionStep("approving");
+      const amount = parseTokenAmount(fromAmount, fromToken.decimals);
+      
       writeContract({
-        address: intuitAddress as `0x${string}`,
+        address: fromToken.address as `0x${string}`,
         abi: erc20Abi,
         functionName: "approve",
-        args: [dexAddress as `0x${string}`, amount],
+        args: [dexRouterAddress as `0x${string}`, amount],
+        gas: 100000n,
       });
+    } catch (error) {
+      console.error("Approve failed:", error);
+      setTransactionStep("idle");
     }
+  }, [writeContract, fromToken.address, fromToken.decimals, fromAmount]);
+
+  // Check if approval is needed (native tokens don't need approval)
+  const needsApproval = fromToken.isNative ? false : 
+    (allowance && fromAmount ? allowance < parseTokenAmount(fromAmount, fromToken.decimals) : true);
+
+  // Handle swap execution
+  const handleSwap = useCallback(async () => {
+    if (!fromAmount || !connectedAddress) return;
+
+    const deadline = Math.floor(Date.now() / 1000) + 1200; // 20 minutes
+    const amountIn = parseTokenAmount(fromAmount, fromToken.decimals);
+    const amountOutMin = amountsOut && amountsOut[1] ? (amountsOut[1] * BigInt(95)) / BigInt(100) : BigInt(0); // 5% slippage
+    
+    try {
+      if (needsApproval) {
+        await handleApprove();
+      } else {
+        setTransactionStep("swapping");
+        
+        // Use different swap functions based on token types
+        if (fromToken.isNative) {
+          // TRUST -> INTUIT: use swapExactETHForTokens
+          writeContract({
+            address: dexRouterAddress as `0x${string}`,
+            abi: routerAbi,
+            functionName: "swapExactETHForTokens",
+            args: [
+              amountOutMin,
+              [getTokenAddress(fromToken), toToken.address],
+              connectedAddress,
+              BigInt(deadline)
+            ],
+            value: amountIn, // Send ETH/TRUST value
+            gas: 300000n,
+          });
+        } else if (toToken.isNative) {
+          // INTUIT -> TRUST: use swapExactTokensForETH  
+          writeContract({
+            address: dexRouterAddress as `0x${string}`,
+            abi: routerAbi,
+            functionName: "swapExactTokensForETH",
+            args: [
+              amountIn,
+              amountOutMin,
+              [fromToken.address, getTokenAddress(toToken)],
+              connectedAddress,
+              BigInt(deadline)
+            ],
+            gas: 300000n,
+          });
+        } else {
+          // ERC20 -> ERC20: use swapExactTokensForTokens
+          writeContract({
+            address: dexRouterAddress as `0x${string}`,
+            abi: routerAbi,
+            functionName: "swapExactTokensForTokens",
+            args: [
+              amountIn,
+              amountOutMin,
+              [fromToken.address, toToken.address],
+              connectedAddress,
+              BigInt(deadline)
+            ],
+            gas: 300000n,
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Swap failed:", error);
+      setTransactionStep("idle");
+    }
+  }, [writeContract, fromAmount, connectedAddress, amountsOut, fromToken.address, fromToken.decimals, toToken.address, needsApproval, handleApprove]);
+
+  // Format balance display
+  const formatBalance = (balance: any, decimals: number, isNative = false) => {
+    if (!balance) return "0";
+    
+    // Handle native balance (from useBalance)
+    if (isNative && balance?.value) {
+      return parseFloat(formatEther(balance.value)).toString();
+    }
+    
+    // Handle ERC20 balance (from useReadContract)
+    const balanceValue = balance?.value || balance;
+    if (!balanceValue) return "0";
+    
+    if (decimals === 18) {
+      return parseFloat(formatEther(balanceValue)).toString();
+    }
+    return (Number(balanceValue) / Math.pow(10, decimals)).toString();
   };
 
-  // Handle the second step of INTUIT swap after approval
-  const handleIntuitSwap = useCallback(() => {
-    if (fromToken.symbol === "INTUIT" && fromAmount) {
-      const amount = parseUnits(fromAmount, 18);
-      setTransactionStep("swapping");
-      writeContract({
-        address: dexAddress as `0x${string}`,
-        abi: intuitDexAbi,
-        functionName: "swapIntuitForTtrust",
-        args: [amount],
-      });
+  // Format token amount for display (used for swap amounts)
+  const formatTokenAmount = (amount: bigint, decimals: number) => {
+    if (!amount) return "0";
+    
+    if (decimals === 18) {
+      return parseFloat(formatEther(amount)).toString();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fromToken.symbol, fromAmount, writeContract]);
+    return (Number(amount) / Math.pow(10, decimals)).toString();
+  };
 
-  // Helper functions
-  const getBalance = (token: (typeof tokens)[0]) => {
-    if (token.symbol === "TTRUST") {
-      // Try native balance first (since TTRUST might be the native token)
-      const balance = ttrustBalanceNative?.value || ttrustBalanceERC20?.value;
-      return balance ? formatEther(balance) : "0";
-    } else {
-      // Handle loading state
-      if (intuitBalanceLoading) return "Loading...";
-
-      // Handle error state
-      if (intuitBalanceError) {
-        console.error("INTUIT Balance Error:", intuitBalanceError);
-        return "Error";
-      }
-
-      return intuitBalance ? formatEther(intuitBalance) : "0";
+  // Get balance for a token (same logic as formatBalance but simplified)
+  const getBalance = (token: typeof tokens[0]) => {
+    const balance = token === fromToken ? fromTokenBalance : toTokenBalance;
+    if (!balance) return "0";
+    
+    if (token.isNative && balance?.value) {
+      return parseFloat(formatEther(balance.value)).toString();
     }
+    
+    const balanceValue = balance?.value || balance;
+    if (!balanceValue) return "0";
+    
+    if (token.decimals === 18) {
+      return parseFloat(formatEther(balanceValue)).toString();
+    }
+    return (Number(balanceValue) / Math.pow(10, token.decimals)).toString();
   };
 
   const isSwapping = isWritePending || transactionStep !== "idle";
 
-  // Post-transaction balance polling
-  useEffect(() => {
-    if (isPostTxPolling) {
-      const pollUserBalances = async () => {
-        try {
-          await Promise.all([
-            refetchTtrustBalanceERC20(),
-            refetchTtrustBalanceNative(),
-            refetchIntuitBalance(),
-            refetchTtrustBalance(),
-            refetchDexIntuitBalance(),
-          ]);
-        } catch (error) {
-          console.error("Error polling user balances:", error);
-        }
-      };
-
-      // Poll immediately
-      pollUserBalances();
-
-      // Then poll every 3 seconds for 10 seconds
-      const interval = setInterval(pollUserBalances, 3000);
-      const timeout = setTimeout(() => {
-        clearInterval(interval);
-        setIsPostTxPolling(false);
-      }, 10000);
-
-      return () => {
-        clearInterval(interval);
-        clearTimeout(timeout);
-      };
-    }
-  }, [
-    isPostTxPolling,
-    refetchTtrustBalanceERC20,
-    refetchTtrustBalanceNative,
-    refetchIntuitBalance,
-    refetchTtrustBalance,
-    refetchDexIntuitBalance,
-  ]);
-
-  // Update transaction step based on confirmation status
+  // Handle transaction confirmations and errors
   useEffect(() => {
     if (isConfirmed && transactionStep !== "idle") {
-      if (transactionStep === "approving" && fromToken.symbol === "INTUIT") {
-        // Approval confirmed, now execute the swap
+      if (transactionStep === "approving") {
+        // Refresh allowance after approval
+        refetchAllowance();
         setTimeout(() => {
-          handleIntuitSwap();
-        }, 1000);
+          setTransactionStep("swapping");
+          const deadline = Math.floor(Date.now() / 1000) + 1200;
+          const amountIn = parseTokenAmount(fromAmount, fromToken.decimals);
+          const amountOutMin = amountsOut && amountsOut[1] ? (amountsOut[1] * BigInt(90)) / BigInt(100) : BigInt(0); // 10% slippage instead of 5%
+          
+          writeContract({
+            address: dexRouterAddress as `0x${string}`,
+            abi: routerAbi,
+            functionName: "swapExactTokensForTokens",
+            args: [
+              amountIn,
+              amountOutMin,
+              [fromToken.address, toToken.address],
+              connectedAddress,
+              BigInt(deadline)
+            ],
+            gas: 300000n,
+          });
+        }, 2000); // Plus de temps pour que l'allowance soit mise à jour
       } else {
-        // Swap confirmed, show success and reset
         setTransactionStep("confirmed");
-        // Start post-transaction polling
-        setIsPostTxPolling(true);
         setTimeout(() => {
           setTransactionStep("idle");
           setFromAmount("");
           setToAmount("");
+          // Refresh balances and allowance
+          refetchFromBalance();
+          refetchToBalance();
+          refetchAllowance();
         }, 2000);
       }
     }
-  }, [isConfirmed, transactionStep, fromToken.symbol, fromAmount, handleIntuitSwap]);
+  }, [isConfirmed, transactionStep, fromToken, fromAmount, toToken, connectedAddress, amountsOut, writeContract, refetchFromBalance, refetchToBalance, refetchAllowance]);
+
+  // Handle transaction errors
+  useEffect(() => {
+    if (isTxError && transactionStep !== "idle") {
+      console.error("Transaction failed");
+      setTimeout(() => {
+        setTransactionStep("idle");
+      }, 1000);
+    }
+  }, [isTxError, transactionStep]);
 
   return (
     <div className="h-full bg-black flex items-center justify-center p-4 relative overflow-hidden">
@@ -387,14 +458,6 @@ export const DexInterface = () => {
               }`}
             >
               SWAP
-            </button>
-            <button
-              onClick={() => setActiveMode("PAIRS")}
-              className={`flex-1 py-2 px-4 rounded-xl font-semibold transition-all duration-200 text-sm ${
-                activeMode === "PAIRS" ? "bg-white text-black shadow-lg" : "text-white hover:bg-white/10"
-              }`}
-            >
-              PAIRS
             </button>
             <button
               onClick={() => setActiveMode("STAKE")}
@@ -413,16 +476,14 @@ export const DexInterface = () => {
             <CardContent className="p-6">
               {/* Settings */}
               <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-semibold text-white">Swap</h2>
+                <h2 className="text-xl font-semibold text-white"></h2>
                 <div className="flex items-center gap-2">
                   <Badge
                     asChild
                     variant="outline"
                     className="bg-blue-500/20 border-blue-400/50 text-blue-300 hover:bg-blue-500/30 cursor-pointer transition-colors text-xs px-2 py-1"
                   >
-                    <a href="https://testnet.hub.intuition.systems/" target="_blank" rel="noopener noreferrer">
-                      Faucet
-                    </a>
+                    <span>{tokens.length} tokens</span>
                   </Badge>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -443,7 +504,7 @@ export const DexInterface = () => {
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-sm text-gray-300">From</span>
                     <span className="text-sm text-gray-300">
-                      Balance: {parseFloat(getBalance(fromToken)).toFixed(4)}
+                      Balance: {parseFloat(formatBalance(fromTokenBalance, fromToken.decimals, fromToken.isNative) || "0").toFixed(4)}
                     </span>
                   </div>
                   <div className="flex items-center gap-3">
@@ -467,15 +528,18 @@ export const DexInterface = () => {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent className="bg-gray-800 border-gray-700">
-                        {tokens.map(token => (
+                        {tokens.filter(t => t.address !== toToken.address).map((token) => (
                           <DropdownMenuItem
-                            key={token.symbol}
+                            key={token.address}
                             onClick={() => setFromToken(token)}
                             className="text-white hover:bg-gray-700"
                           >
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img src={token.logo} alt={token.symbol} className="w-4 h-4 mr-2 rounded-full" />
-                            {token.symbol}
+                            <div>
+                              <div>{token.symbol}</div>
+                              <div className="text-xs text-gray-500">{token.name}</div>
+                            </div>
                           </DropdownMenuItem>
                         ))}
                       </DropdownMenuContent>
@@ -490,7 +554,7 @@ export const DexInterface = () => {
                         variant="ghost"
                         size="sm"
                         onClick={() => {
-                          const balance = parseFloat(getBalance(fromToken));
+                          const balance = parseFloat(formatBalance(fromTokenBalance, fromToken.decimals, fromToken.isNative) || "0");
                           const amount = ((balance * percentage) / 100).toString();
                           handleFromAmountChange(amount);
                         }}
@@ -518,27 +582,33 @@ export const DexInterface = () => {
                 <div className="bg-white/10 rounded-2xl p-4 border border-white/30 backdrop-blur-xl shadow-lg shadow-black/20">
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-sm text-gray-300">To</span>
-                    <span className="text-sm text-gray-300">Balance: {parseFloat(getBalance(toToken)).toFixed(4)}</span>
+                    <span className="text-sm text-gray-300">
+                      Balance: {parseFloat(getBalance(toToken)).toFixed(4)}
+                    </span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <div className="flex-1">
-                      (
-                        <Skeleton className="h-12 w-full bg-gray-700 rounded-xl" />
-                      ) : (
-                    <Input
-                      type="number"
-                      placeholder="0.0"
-                      value={toAmount}
-                      onChange={e => handleFromAmountChange(e.target.value)}
-                      className="bg-black/20 border border-white/20 text-2xl font-semibold text-white placeholder-gray-400 p-3 h-auto focus-visible:ring-2 focus-visible:ring-white/50 rounded-xl"
-                    />
-                      )
-                    </div>
+                    {isCalculating && fromAmount ? (
+                      <Skeleton className="h-12 w-full bg-gray-700 rounded-xl" />
+                    ) : (
+                      <Input
+                        type="number"
+                        placeholder={
+                          fromAmount && parseFloat(fromAmount) > 0 && amountsOut && Array.isArray(amountsOut) && amountsOut.length > 1
+                            ? `~${formatTokenAmount(amountsOut[1], toToken.decimals)} ${toToken.symbol}`
+                            : fromAmount && parseFloat(fromAmount) > 0
+                              ? `Calculating...`
+                              : "0.0"
+                        }
+                        value={toAmount}
+                        readOnly
+                        className="bg-black/20 border border-white/20 text-2xl font-semibold text-white placeholder-gray-400 p-3 h-auto focus-visible:ring-2 focus-visible:ring-white/50 rounded-xl cursor-default"
+                      />
+                    )}
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button
                           variant="ghost"
-                          className="bg-gray-700 hover:bg-gray-600 text-white rounded-full px-4 py-2 flex-shrink-0"
+                          className="bg-gray-700 hover:bg-gray-600 text-white rounded-full px-4 py-2"
                         >
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={toToken.logo} alt={toToken.symbol} className="w-5 h-5 mr-2 rounded-full" />
@@ -547,15 +617,18 @@ export const DexInterface = () => {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent className="bg-gray-800 border-gray-700">
-                        {tokens.map(token => (
+                        {tokens.filter(t => t.address !== fromToken.address).map((token) => (
                           <DropdownMenuItem
-                            key={token.symbol}
+                            key={token.address}
                             onClick={() => setToToken(token)}
                             className="text-white hover:bg-gray-700"
                           >
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img src={token.logo} alt={token.symbol} className="w-4 h-4 mr-2 rounded-full" />
-                            {token.symbol}
+                            <div>
+                              <div>{token.symbol}</div>
+                              <div className="text-xs text-gray-500">{token.name}</div>
+                            </div>
                           </DropdownMenuItem>
                         ))}
                       </DropdownMenuContent>
@@ -637,7 +710,7 @@ export const DexInterface = () => {
                               <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                             )}
                           </div>
-                          {fromToken.symbol === "INTUIT" && transactionStep === "approving" && (
+                          {transactionStep === "approving" && (
                             <div className="mt-2 text-xs text-gray-500">
                               Please confirm the approval transaction in your wallet
                             </div>
@@ -655,52 +728,14 @@ export const DexInterface = () => {
               </div>
             </CardContent>
           </Card>
-        ) : activeMode === "PAIRS" ? (
-          <PairManager />
         ) : (
           <StakeInterface />
-        )}
-
-        {/* Pool Stats - Only show for SWAP mode */}
-        {activeMode === "SWAP" && (
-          <div className="mt-2 grid grid-cols-2 gap-2 sm:mt-4 sm:gap-3">
-            <Card className="bg-white/5 border-white/20 backdrop-blur-2xl shadow-2xl shadow-black/20 before:absolute before:inset-0 before:bg-gradient-to-br before:from-white/10 before:to-transparent before:rounded-lg before:pointer-events-none relative">
-              <CardContent className="p-1.5 sm:p-4 text-center relative z-10 min-h-[10px] sm:min-h-0">
-                <div className="text-sm sm:text-2xl font-bold text-white text-center leading-none">
-                  {isInitialLoading ? (
-                    <Skeleton className="h-3 sm:h-8 w-20 sm:w-24 bg-gray-700 mx-auto" />
-                  ) : dexTtrustBalance ? (
-                    parseFloat(formatEther(dexTtrustBalance.value)).toFixed(2)
-                  ) : (
-                    "0"
-                  )}
-                </div>
-                <div className="text-[10px] sm:text-sm text-white leading-none mt-0.5 sm:mt-1">TTRUST Pool</div>
-              </CardContent>
-            </Card>
-            <Card className="bg-white/5 border-white/20 backdrop-blur-2xl shadow-2xl shadow-black/20 before:absolute before:inset-0 before:bg-gradient-to-br before:from-white/10 before:to-transparent before:rounded-lg before:pointer-events-none relative">
-              <CardContent className="p-1.5 sm:p-4 text-center relative z-10 min-h-[10px] sm:min-h-0">
-                <div className="text-sm sm:text-2xl font-bold text-white text-center leading-none">
-                  {dexIntuitBalanceLoading || isInitialLoading ? (
-                    <Skeleton className="h-3 sm:h-8 w-20 sm:w-24 bg-gray-700 mx-auto" />
-                  ) : dexIntuitBalanceError ? (
-                    "Error"
-                  ) : dexIntuitBalance ? (
-                    parseFloat(formatEther(dexIntuitBalance)).toFixed(2)
-                  ) : (
-                    "0"
-                  )}
-                </div>
-                <div className="text-[10px] sm:text-sm text-white leading-none mt-0.5 sm:mt-1">INTUIT Pool</div>
-              </CardContent>
-            </Card>
-          </div>
         )}
 
         {/* Footer */}
         {activeMode === "SWAP" && (
           <div className="text-center mt-4 text-white text-xs">
-            <p>Powered by Intuition Testnet • 0.3% trading fee</p>
+            <p>TRUST ↔ INTUIT • 0.3% trading fee</p>
           </div>
         )}
       </div>
