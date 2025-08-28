@@ -19,6 +19,11 @@ export const UniversalDex = () => {
   const dexRouterAddress = "0x5f3f1dBD7B74C6B46e8c44f98792A1dAf8d69154"; // DEXRouter
   const dexFactoryAddress = "0x1291Be112d480055DaFd8a610b7d1e203891C274"; // DEXFactory
   const faucetAddress = "0xb7278A61aa25c888815aFC32Ad3cC52fF24fE575"; // INTUIT Faucet
+  const transactionLimitsAddress = "0x162A433068F51e18b7d13932F27e66a3f99E6890"; // TransactionLimits - deployed security contract
+  
+  // Constants for comparison
+  const PLACEHOLDER_ADDRESS = "0x0000000000000000000000000000000000000000";
+  const isFaucetDeployed = true; // Faucet is deployed
 
   // Token configuration - Only TRUST and INTUIT
   const tokens = [
@@ -206,7 +211,7 @@ export const UniversalDex = () => {
     abi: faucetAbi,
     functionName: "canClaim",
     args: [connectedAddress as `0x${string}`],
-    query: { enabled: !!connectedAddress && faucetAddress !== "0x..." },
+    query: { enabled: !!connectedAddress && isFaucetDeployed },
   });
 
   // Get faucet cooldown time
@@ -215,7 +220,7 @@ export const UniversalDex = () => {
     abi: faucetAbi,
     functionName: "timeUntilNextClaim",
     args: [connectedAddress as `0x${string}`],
-    query: { enabled: !!connectedAddress && faucetAddress !== "0x..." },
+    query: { enabled: !!connectedAddress && isFaucetDeployed },
   });
 
   // Helper function to parse amounts based on token decimals
@@ -327,7 +332,7 @@ export const UniversalDex = () => {
 
   // Check if approval is needed (native tokens don't need approval)
   const needsApproval = fromToken.isNative ? false : 
-    (allowance && fromAmount ? allowance < parseTokenAmount(fromAmount, fromToken.decimals) : true);
+    (allowance && fromAmount ? (allowance as bigint) < parseTokenAmount(fromAmount, fromToken.decimals) : true);
 
   // Handle swap execution
   const handleSwap = useCallback(async () => {
@@ -336,7 +341,7 @@ export const UniversalDex = () => {
     const deadline = Math.floor(Date.now() / 1000) + 1200; // 20 minutes
     const amountIn = parseTokenAmount(fromAmount, fromToken.decimals);
     const slippageMultiplier = BigInt(Math.floor((100 - parseFloat(slippage)) * 100));
-    const amountOutMin = amountsOut && amountsOut[1] ? (amountsOut[1] * slippageMultiplier) / BigInt(10000) : BigInt(0);
+    const amountOutMin = amountsOut && (amountsOut as bigint[])[1] ? ((amountsOut as bigint[])[1] * slippageMultiplier) / BigInt(10000) : BigInt(0);
     
     try {
       if (needsApproval) {
@@ -400,7 +405,7 @@ export const UniversalDex = () => {
 
   // Handle faucet claim
   const handleFaucetClaim = useCallback(async () => {
-    if (!connectedAddress || faucetAddress === "0x...") return;
+    if (!connectedAddress || !isFaucetDeployed) return;
     
     try {
       setIsFaucetClaiming(true);
@@ -459,11 +464,11 @@ export const UniversalDex = () => {
     const balance = token === fromToken ? fromTokenBalance : toTokenBalance;
     if (!balance) return "0";
     
-    if (token.isNative && balance?.value) {
-      return parseFloat(formatEther(balance.value)).toString();
+    if (token.isNative && (balance as any)?.value) {
+      return parseFloat(formatEther((balance as any).value)).toString();
     }
     
-    const balanceValue = balance?.value || balance;
+    const balanceValue = (balance as any)?.value || balance;
     if (!balanceValue) return "0";
     
     if (token.decimals === 18) {
@@ -485,7 +490,7 @@ export const UniversalDex = () => {
           const deadline = Math.floor(Date.now() / 1000) + 1200;
           const amountIn = parseTokenAmount(fromAmount, fromToken.decimals);
           const slippageMultiplier = BigInt(Math.floor((100 - parseFloat(slippage)) * 100));
-          const amountOutMin = amountsOut && amountsOut[1] ? (amountsOut[1] * slippageMultiplier) / BigInt(10000) : BigInt(0);
+          const amountOutMin = amountsOut && (amountsOut as bigint[])[1] ? ((amountsOut as bigint[])[1] * slippageMultiplier) / BigInt(10000) : BigInt(0);
           
           writeContract({
             address: dexRouterAddress as `0x${string}`,
@@ -776,7 +781,7 @@ export const UniversalDex = () => {
                 </div>
 
                 {/* Faucet Button - Show only for INTUIT */}
-                {connectedAddress && faucetAddress !== "0x..." && (
+                {connectedAddress && isFaucetDeployed && (
                   <div className="mb-3">
                     <Button
                       onClick={handleFaucetClaim}

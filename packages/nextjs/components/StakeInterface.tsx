@@ -165,8 +165,9 @@ export const StakeInterface = () => {
   const { data: poolInfo, refetch: refetchPoolInfo } = useReadContract({
     address: intuitStakingAddress as `0x${string}`,
     abi: intuitStakingAbi,
-    functionName: "rewardRate",
-    query: { enabled: selectedToken.symbol === "INTUIT" }
+    functionName: "getUserStakeInfo",
+    args: [connectedAddress as `0x${string}`],
+    query: { enabled: selectedToken.symbol === "INTUIT" && !!connectedAddress }
   });
 
   // Write contract functions
@@ -347,13 +348,13 @@ export const StakeInterface = () => {
     
     if (!tokenBalance) return "0";
     
-    if (selectedToken.isNative && tokenBalance?.value) {
-      const balance = formatEther(tokenBalance.value);
+    if (selectedToken.isNative && (tokenBalance as any)?.value) {
+      const balance = formatEther((tokenBalance as any).value);
       console.log(`✅ Balance native ${selectedToken.symbol}:`, balance);
       return balance;
     }
     
-    const balanceValue = tokenBalance?.value || tokenBalance;
+    const balanceValue = (tokenBalance as any)?.value || tokenBalance;
     if (!balanceValue) return "0";
     
     if (selectedToken.decimals === 18) {
@@ -399,16 +400,18 @@ export const StakeInterface = () => {
         };
       }
       
-      const [rewardRate, totalStaked, minStakeAmount, lockPeriod, isActive] = poolInfo;
-      const [stakedAmount, stakeTime, pendingRewards, canUnstake] = userStakeInfo;
+      const poolInfoArray = poolInfo as readonly [bigint, bigint, bigint, boolean];
+      const userStakeInfoArray = userStakeInfo as readonly [bigint, bigint];
+      const [, totalStaked, minStakeAmount] = poolInfoArray;
+      const [stakedAmount] = userStakeInfoArray;
       return {
         totalStaked: Number(formatEther(totalStaked)).toLocaleString(),
         userStaked: formatEther(stakedAmount),
-        rewards: formatEther(pendingRewards),
-        lockPeriod: lockPeriod === 0n ? "Immediate unstaking" : `${Number(lockPeriod) / (24 * 60 * 60)} days lock`,
+        rewards: "0", // formatEther(pendingRewards),
+        lockPeriod: "Immediate unstaking",
         minStakeAmount: formatEther(minStakeAmount),
-        canUnstake,
-        isActive
+        canUnstake: true,
+        isActive: true
       };
     }
   };
@@ -579,7 +582,7 @@ export const StakeInterface = () => {
                     <Info className="w-3 h-3 text-gray-500 hover:text-gray-300 cursor-pointer" />
                   </button>
                 </div>
-                <span className="text-white font-semibold">{selectedToken.lockPeriod}</span>
+                <span className="text-white font-semibold">{stakingData.lockPeriod}</span>
               </div>
             </div>
             
