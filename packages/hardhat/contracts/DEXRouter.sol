@@ -3,6 +3,7 @@ pragma solidity >=0.8.0 <0.9.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "./TransactionLimits.sol";
 
 /**
  * @title DEX Router
@@ -15,6 +16,7 @@ contract DEXRouter is ReentrancyGuard {
     
     address public immutable factory;
     address public immutable WETH;
+    TransactionLimits public transactionLimits;
     
     /* ========== EVENTS ========== */
     
@@ -27,6 +29,11 @@ contract DEXRouter is ReentrancyGuard {
     constructor(address _factory, address _WETH) {
         factory = _factory;
         WETH = _WETH;
+    }
+    
+    function setTransactionLimits(address _transactionLimits) external {
+        require(address(transactionLimits) == address(0), "DEXRouter: Already set");
+        transactionLimits = TransactionLimits(_transactionLimits);
     }
     
     /* ========== MODIFIERS ========== */
@@ -206,6 +213,11 @@ contract DEXRouter is ReentrancyGuard {
         require(amountIn > 0, 'DEXRouter: INVALID_AMOUNT');
         require(to != address(0), 'DEXRouter: INVALID_TO_ADDRESS');
         
+        // Check transaction limits if available
+        if (address(transactionLimits) != address(0)) {
+            transactionLimits.checkSwapLimits(msg.sender, amountIn);
+        }
+        
         amounts = getAmountsOut(amountIn, path);
         require(amounts[amounts.length - 1] >= amountOutMin, 'DEXRouter: INSUFFICIENT_OUTPUT_AMOUNT');
         
@@ -228,6 +240,11 @@ contract DEXRouter is ReentrancyGuard {
         amounts = getAmountsIn(amountOut, path);
         require(amounts[0] <= amountInMax, 'DEXRouter: EXCESSIVE_INPUT_AMOUNT');
         
+        // Check transaction limits if available
+        if (address(transactionLimits) != address(0)) {
+            transactionLimits.checkSwapLimits(msg.sender, amounts[0]);
+        }
+        
         IERC20(path[0]).transferFrom(msg.sender, pairFor(path[0], path[1]), amounts[0]);
         _swap(amounts, path, to);
         emit SwapTokensForTokens(amounts[0], amountOut, path, to);
@@ -244,6 +261,11 @@ contract DEXRouter is ReentrancyGuard {
         require(path[0] == WETH, 'DEXRouter: INVALID_PATH');
         require(msg.value > 0, 'DEXRouter: INVALID_ETH_AMOUNT');
         require(to != address(0), 'DEXRouter: INVALID_TO_ADDRESS');
+        
+        // Check transaction limits if available
+        if (address(transactionLimits) != address(0)) {
+            transactionLimits.checkSwapLimits(msg.sender, msg.value);
+        }
         
         amounts = getAmountsOut(msg.value, path);
         require(amounts[amounts.length - 1] >= amountOutMin, 'DEXRouter: INSUFFICIENT_OUTPUT_AMOUNT');
@@ -264,6 +286,11 @@ contract DEXRouter is ReentrancyGuard {
         require(path[path.length - 1] == WETH, 'DEXRouter: INVALID_PATH');
         require(amountIn > 0, 'DEXRouter: INVALID_AMOUNT');
         require(to != address(0), 'DEXRouter: INVALID_TO_ADDRESS');
+        
+        // Check transaction limits if available
+        if (address(transactionLimits) != address(0)) {
+            transactionLimits.checkSwapLimits(msg.sender, amountIn);
+        }
         
         amounts = getAmountsOut(amountIn, path);
         require(amounts[amounts.length - 1] >= amountOutMin, 'DEXRouter: INSUFFICIENT_OUTPUT_AMOUNT');

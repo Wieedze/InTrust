@@ -5,6 +5,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "./TransactionLimits.sol";
 
 /**
  * @title IntuitStaking
@@ -23,6 +24,7 @@ contract IntuitStaking is Ownable, ReentrancyGuard {
 
     // INTUIT token contract
     IERC20 public intuitToken;
+    TransactionLimits public transactionLimits;
     
     // Staking parameters
     uint256 public rewardRate;          // INTUIT rewards per second per INTUIT staked (18 decimals)
@@ -51,6 +53,10 @@ contract IntuitStaking is Ownable, ReentrancyGuard {
         rewardRate = _rewardRate;
         minStakeAmount = _minStakeAmount;
     }
+    
+    function setTransactionLimits(address _transactionLimits) external onlyOwner {
+        transactionLimits = TransactionLimits(_transactionLimits);
+    }
 
     /**
      * @dev Stake INTUIT tokens
@@ -58,6 +64,11 @@ contract IntuitStaking is Ownable, ReentrancyGuard {
     function stake(uint256 _amount) external nonReentrant {
         require(_amount >= minStakeAmount, "Amount below minimum");
         require(_amount > 0, "Cannot stake 0 tokens");
+
+        // Check transaction limits if available
+        if (address(transactionLimits) != address(0)) {
+            transactionLimits.checkStakeLimits(msg.sender, _amount);
+        }
 
         UserInfo storage user = userInfo[msg.sender];
         

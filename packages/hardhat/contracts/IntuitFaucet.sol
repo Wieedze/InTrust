@@ -3,6 +3,7 @@ pragma solidity ^0.8.4;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "./TransactionLimits.sol";
 
 /**
  * @title INTUIT Faucet
@@ -13,6 +14,7 @@ contract IntuitFaucet is Ownable {
     /* ========== STATE VARIABLES ========== */
     
     IERC20 public immutable intuitToken;
+    TransactionLimits public transactionLimits;
     uint256 public claimAmount = 1000 * 10**18; // 1000 INTUIT per claim
     uint256 public cooldownPeriod = 24 hours; // 24h between claims
     
@@ -31,6 +33,10 @@ contract IntuitFaucet is Ownable {
         intuitToken = IERC20(_intuitToken);
     }
     
+    function setTransactionLimits(address _transactionLimits) external onlyOwner {
+        transactionLimits = TransactionLimits(_transactionLimits);
+    }
+    
     /* ========== PUBLIC FUNCTIONS ========== */
     
     /**
@@ -39,6 +45,11 @@ contract IntuitFaucet is Ownable {
     function claimTokens() external {
         require(canClaim(msg.sender), "Faucet: Still in cooldown period");
         require(intuitToken.balanceOf(address(this)) >= claimAmount, "Faucet: Insufficient balance");
+        
+        // Check transaction limits if available
+        if (address(transactionLimits) != address(0)) {
+            transactionLimits.checkFaucetLimits(msg.sender);
+        }
         
         lastClaimTime[msg.sender] = block.timestamp;
         
