@@ -467,6 +467,14 @@ export const UniversalDex = () => {
             >
               STAKE
             </button>
+            <button
+              onClick={() => setActiveMode("BRIDGE")}
+              className={`flex-1 py-2 px-4 rounded-xl font-semibold transition-all duration-200 text-sm ${
+                activeMode === "BRIDGE" ? "bg-white text-black shadow-lg" : "text-white hover:bg-white/10"
+              }`}
+            >
+              BRIDGE
+            </button>
           </div>
         </div>
 
@@ -728,9 +736,11 @@ export const UniversalDex = () => {
               </div>
             </CardContent>
           </Card>
-        ) : (
+        ) : activeMode === "STAKE" ? (
           <StakeInterface />
-        )}
+        ) : activeMode === "BRIDGE" ? (
+          <TokenBridge />
+        ) : null}
 
         {/* Footer */}
         {activeMode === "SWAP" && (

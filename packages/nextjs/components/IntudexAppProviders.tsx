@@ -26,7 +26,7 @@ const IntudexApp = ({ children }: { children: React.ReactNode }) => {
               className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl"
             />
             <h1 className="text-lg sm:text-3xl font-bold text-white">
-              TrustSwap
+              InTrust
             </h1>
           </div>
           

@@ -18,6 +18,9 @@ export const TokenBridge = () => {
   // DEX Factory address
   const dexFactoryAddress = "0x54D248E118983dDdDF4DAA605CBa832BA6F1eb4C";
   const intuitAddress = "0xe8bD8876CB6f97663c668faae65C4Da579FfA0B5";
+  // Pour créer des paires avec TRUST natif, nous devons trouver l'adresse WETH déployée
+  // ou créer des paires directement avec le router qui gère les tokens natifs
+  const wethAddress = "0x0000000000000000000000000000000000000000"; // Adresse nulle pour TRUST natif
 
   // Factory ABI for creating pairs
   const factoryAbi = [
@@ -64,7 +67,7 @@ export const TokenBridge = () => {
         address: dexFactoryAddress as `0x${string}`,
         abi: factoryAbi,
         functionName: "createPair",
-        args: [newTokenAddress as `0x${string}`, intuitAddress as `0x${string}`],
+        args: [newTokenAddress as `0x${string}`, wethAddress as `0x${string}`],
         gas: 300000n,
       });
     } catch (error) {
@@ -87,7 +90,7 @@ export const TokenBridge = () => {
         {/* Header */}
         <div className="text-center space-y-2">
           <h1 className="text-4xl font-bold text-white">Token Bridge</h1>
-          <p className="text-gray-300">Add new tokens and create trading pairs with INTUIT</p>
+          <p className="text-gray-300">Add new tokens and create trading pairs with TRUST</p>
         </div>
 
         {/* Create New Pair */}
