@@ -741,7 +741,7 @@ export const UniversalDex = () => {
                       )}
                     </div>
                     <div className="flex gap-2 mb-2">
-                      {["0.1", "0.5", "1.0", "3.0"].map((preset) => (
+                      {["0.1", "0.2", "0.3", "0.5"].map((preset) => (
                         <Button
                           key={preset}
                           variant="ghost"
