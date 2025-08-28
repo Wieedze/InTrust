@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { ParticleBackground } from "./ParticleBackground";
 import { StakeInterface } from "./StakeInterface";
-import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Card, CardContent } from "./ui/card";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
@@ -20,21 +19,19 @@ export const UniversalDex = () => {
   const dexRouterAddress = "0x42Af1bCF6BD4876421b27c2a7Fcd9C8315cDA121"; // DEXRouter
   const dexFactoryAddress = "0x54D248E118983dDdDF4DAA605CBa832BA6F1eb4C";
 
-  // Token configuration with popular tokens
+  // Token configuration - Only TRUST and INTUIT
   const tokens = [
-    { symbol: "TRUST", name: "TRUST Token", logo: "/trust.png", address: "native", decimals: 18, isNative: true },
-    { symbol: "INTUIT", name: "Intuit Token", logo: "/intuit.png?v=1", address: "0xe8bD8876CB6f97663c668faae65C4Da579FfA0B5", decimals: 18, isNative: false },
-    { symbol: "BTC", name: "Bitcoin", logo: "/btc.png", address: "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599", decimals: 8, isNative: false },
-    { symbol: "ETH", name: "Ethereum", logo: "/eth.png", address: "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2", decimals: 18, isNative: false },
-    { symbol: "USDC", name: "USD Coin", logo: "/usdc.png", address: "0xA0b86a33E6441E539Eca1dF08E65A5b1e3A4c4b", decimals: 6, isNative: false },
-    { symbol: "USDT", name: "Tether USD", logo: "/usdt.png", address: "0xdAC17F958D2ee523a2206206994597C13D831ec7", decimals: 6, isNative: false }
+    { symbol: "TRUST", name: "TRUST Token", logo: "/trust.svg", address: "native", decimals: 18, isNative: true },
+    { symbol: "INTUIT", name: "Intuit Token", logo: "/intuit.svg", address: "0xe8bD8876CB6f97663c668faae65C4Da579FfA0B5", decimals: 18, isNative: false }
   ];
 
   const [fromToken, setFromToken] = useState(tokens[0]);
   const [toToken, setToToken] = useState(tokens[1]);
   const [fromAmount, setFromAmount] = useState("");
   const [toAmount, setToAmount] = useState("");
-  const [slippage] = useState("0.5");
+  const [slippage, setSlippage] = useState("0.5");
+  const [customSlippage, setCustomSlippage] = useState("");
+  const [isCustomSlippage, setIsCustomSlippage] = useState(false);
   const [isPollingReserves, setIsPollingReserves] = useState(false);
   const [isCalculating, setIsCalculating] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
@@ -285,7 +282,8 @@ export const UniversalDex = () => {
 
     const deadline = Math.floor(Date.now() / 1000) + 1200; // 20 minutes
     const amountIn = parseTokenAmount(fromAmount, fromToken.decimals);
-    const amountOutMin = amountsOut && amountsOut[1] ? (amountsOut[1] * BigInt(95)) / BigInt(100) : BigInt(0); // 5% slippage
+    const slippageMultiplier = BigInt(Math.floor((100 - parseFloat(slippage)) * 100));
+    const amountOutMin = amountsOut && amountsOut[1] ? (amountsOut[1] * slippageMultiplier) / BigInt(10000) : BigInt(0);
     
     try {
       if (needsApproval) {
@@ -406,7 +404,8 @@ export const UniversalDex = () => {
           setTransactionStep("swapping");
           const deadline = Math.floor(Date.now() / 1000) + 1200;
           const amountIn = parseTokenAmount(fromAmount, fromToken.decimals);
-          const amountOutMin = amountsOut && amountsOut[1] ? (amountsOut[1] * BigInt(90)) / BigInt(100) : BigInt(0); // 10% slippage instead of 5%
+          const slippageMultiplier = BigInt(Math.floor((100 - parseFloat(slippage)) * 100));
+          const amountOutMin = amountsOut && amountsOut[1] ? (amountsOut[1] * slippageMultiplier) / BigInt(10000) : BigInt(0);
           
           writeContract({
             address: dexRouterAddress as `0x${string}`,
@@ -448,11 +447,11 @@ export const UniversalDex = () => {
   }, [isTxError, transactionStep]);
 
   return (
-    <div className="h-full bg-black flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="h-screen bg-black relative flex items-center justify-center">
       <ParticleBackground />
-      <div className="w-full relative z-10 max-h-full overflow-y-auto max-w-md">
+      <div className="relative z-10 w-full max-w-lg px-4">
         {/* Mode Toggle */}
-        <div className="mb-6">
+        <div className="mb-4">
           <div className="bg-white/5 border border-white/20 backdrop-blur-xl rounded-2xl p-1 flex">
             <button
               onClick={() => setActiveMode("SWAP")}
@@ -475,35 +474,13 @@ export const UniversalDex = () => {
 
         {/* Main Interface */}
         {activeMode === "SWAP" ? (
-          <Card className="bg-white/5 border-white/20 backdrop-blur-2xl shadow-2xl shadow-white/10 before:absolute before:inset-0 before:bg-gradient-to-br before:from-white/10 before:to-transparent before:rounded-lg before:pointer-events-none">
-            <CardContent className="p-6">
-              {/* Settings */}
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-semibold text-white"></h2>
-                <div className="flex items-center gap-2">
-                  <Badge
-                    asChild
-                    variant="outline"
-                    className="bg-blue-500/20 border-blue-400/50 text-blue-300 hover:bg-blue-500/30 cursor-pointer transition-colors text-xs px-2 py-1"
-                  >
-                    <span>{tokens.length} tokens</span>
-                  </Badge>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
-                        <Settings className="w-4 h-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="bg-gray-800 border-gray-700">
-                      <DropdownMenuItem className="text-white">Slippage: {slippage}%</DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </div>
+          <div className="mb-4">
+            <Card className="bg-white/5 border-white/20 backdrop-blur-2xl shadow-2xl shadow-white/10 before:absolute before:inset-0 before:bg-gradient-to-br before:from-white/10 before:to-transparent before:rounded-lg before:pointer-events-none">
+              <CardContent className="p-4">
 
               {/* From Token */}
-              <div className="space-y-4">
-                <div className="bg-white/10 rounded-2xl p-4 border border-white/30 backdrop-blur-xl shadow-lg shadow-black/20">
+              <div className="space-y-3">
+                <div className="bg-white/10 rounded-xl p-3 border border-white/30 backdrop-blur-xl shadow-lg shadow-black/20">
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-sm text-gray-300">From</span>
                     <span className="text-sm text-gray-300">
@@ -516,7 +493,7 @@ export const UniversalDex = () => {
                       placeholder="0.0"
                       value={fromAmount}
                       onChange={e => handleFromAmountChange(e.target.value)}
-                      className="bg-black/20 border border-white/20 text-2xl font-semibold text-white placeholder-gray-400 p-3 h-auto focus-visible:ring-2 focus-visible:ring-white/50 rounded-xl"
+                      className="bg-black/20 border border-white/20 text-xl font-semibold text-white placeholder-gray-400 p-2 h-auto focus-visible:ring-2 focus-visible:ring-white/50 rounded-xl"
                     />
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -550,7 +527,7 @@ export const UniversalDex = () => {
                   </div>
 
                   {/* Percentage Buttons */}
-                  <div className="flex gap-2 mt-3">
+                  <div className="flex gap-2 mt-2">
                     {[5, 10, 25, 50, 100].map(percentage => (
                       <Button
                         key={percentage}
@@ -561,7 +538,7 @@ export const UniversalDex = () => {
                           const amount = ((balance * percentage) / 100).toString();
                           handleFromAmountChange(amount);
                         }}
-                        className="bg-white/10 hover:bg-white/20 text-white text-xs px-3 py-1 rounded-lg border border-white/20 flex-1 min-h-[32px]"
+                        className="bg-white/10 hover:bg-white/20 text-white text-xs px-2 py-1 rounded-lg border border-white/20 flex-1 min-h-[28px]"
                       >
                         {percentage === 100 ? "MAX" : `${percentage}%`}
                       </Button>
@@ -582,7 +559,7 @@ export const UniversalDex = () => {
                 </div>
 
                 {/* To Token */}
-                <div className="bg-white/10 rounded-2xl p-4 border border-white/30 backdrop-blur-xl shadow-lg shadow-black/20">
+                <div className="bg-white/10 rounded-xl p-3 border border-white/30 backdrop-blur-xl shadow-lg shadow-black/20">
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-sm text-gray-300">To</span>
                     <span className="text-sm text-gray-300">
@@ -604,7 +581,7 @@ export const UniversalDex = () => {
                         }
                         value={toAmount}
                         readOnly
-                        className="bg-black/20 border border-white/20 text-2xl font-semibold text-white placeholder-gray-400 p-3 h-auto focus-visible:ring-2 focus-visible:ring-white/50 rounded-xl cursor-default"
+                        className="bg-black/20 border border-white/20 text-xl font-semibold text-white placeholder-gray-400 p-2 h-auto focus-visible:ring-2 focus-visible:ring-white/50 rounded-xl cursor-default"
                       />
                     )}
                     <DropdownMenu>
@@ -662,14 +639,67 @@ export const UniversalDex = () => {
                         {(parseFloat(fromAmount) * 0.003).toFixed(6)} {fromToken.symbol}
                       </span>
                     </div>
+                    <div className="flex justify-between mt-1">
+                      <span>Slippage ({slippage}%)</span>
+                      <span>
+                        Max: {(parseFloat(toAmount) * (1 - parseFloat(slippage) / 100)).toFixed(6)} {toToken.symbol}
+                      </span>
+                    </div>
                   </div>
                 )}
 
+                {/* Slippage Settings */}
+                <div className="mb-3">
+                  <div className="bg-white/5 rounded-xl p-3 border border-white/20 backdrop-blur-xl">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm text-gray-300">Slippage Tolerance</span>
+                      {parseFloat(slippage) > 5 && (
+                        <span className="text-yellow-400 text-xs">⚠️ High</span>
+                      )}
+                      {parseFloat(slippage) < 0.1 && (
+                        <span className="text-yellow-400 text-xs">⚠️ Low</span>
+                      )}
+                    </div>
+                    <div className="flex gap-2 mb-2">
+                      {["0.1", "0.5", "1.0", "3.0"].map((preset) => (
+                        <Button
+                          key={preset}
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setSlippage(preset);
+                            setIsCustomSlippage(false);
+                          }}
+                          className={`text-xs px-2 py-1 rounded-lg border border-white/20 flex-1 min-h-[28px] ${
+                            slippage === preset && !isCustomSlippage
+                              ? "bg-white text-black"
+                              : "bg-white/10 hover:bg-white/20 text-white"
+                          }`}
+                        >
+                          {preset}%
+                        </Button>
+                      ))}
+                    </div>
+                    <Input
+                      type="number"
+                      placeholder="Custom %"
+                      value={isCustomSlippage ? customSlippage : ""}
+                      onChange={(e) => {
+                        setCustomSlippage(e.target.value);
+                        setSlippage(e.target.value);
+                        setIsCustomSlippage(true);
+                      }}
+                      onFocus={() => setIsCustomSlippage(true)}
+                      className="bg-black/20 border border-white/20 text-white placeholder-gray-400 text-sm h-7 w-full rounded-lg"
+                    />
+                  </div>
+                </div>
+
                 {/* Action Buttons */}
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {!connectedAddress ? (
-                    <div className="text-center py-4">
-                      <Button className="w-full bg-white hover:bg-gray-200 text-black font-semibold py-3 rounded-2xl">
+                    <div className="text-center">
+                      <Button className="w-full bg-white hover:bg-gray-200 text-black font-semibold py-2 rounded-xl">
                         Connect Wallet
                       </Button>
                     </div>
@@ -678,7 +708,7 @@ export const UniversalDex = () => {
                       <Button
                         onClick={handleSwap}
                         disabled={!fromAmount || isSwapping}
-                        className="w-full bg-white hover:bg-gray-200 text-black font-semibold py-3 rounded-2xl relative overflow-hidden"
+                        className="w-full bg-white hover:bg-gray-200 text-black font-semibold py-2 rounded-xl relative overflow-hidden"
                       >
                         {transactionStep === "idle" && "Swap"}
                         {transactionStep === "approving" && (
@@ -702,45 +732,36 @@ export const UniversalDex = () => {
 
                       {/* Transaction Status */}
                       {transactionStep !== "idle" && (
-                        <div className="bg-white/5 rounded-xl p-3 text-sm border border-white/20 backdrop-blur-xl">
+                        <div className="bg-white/5 rounded-xl p-2 text-sm border border-white/20 backdrop-blur-xl">
                           <div className="flex items-center justify-between">
-                            <span className="text-gray-400">
-                              {transactionStep === "approving" && "Step 1/2: Approving token spend..."}
-                              {transactionStep === "swapping" && "Step 2/2: Executing swap..."}
-                              {transactionStep === "confirmed" && "Swap completed successfully!"}
+                            <span className="text-gray-400 text-xs">
+                              {transactionStep === "approving" && "Approving..."}
+                              {transactionStep === "swapping" && "Swapping..."}
+                              {transactionStep === "confirmed" && "Completed!"}
                             </span>
                             {isConfirming && (
-                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                              <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                             )}
                           </div>
-                          {transactionStep === "approving" && (
-                            <div className="mt-2 text-xs text-gray-500">
-                              Please confirm the approval transaction in your wallet
-                            </div>
-                          )}
-                          {transactionStep === "swapping" && (
-                            <div className="mt-2 text-xs text-gray-500">
-                              Please confirm the swap transaction in your wallet
-                            </div>
-                          )}
                         </div>
                       )}
                     </div>
                   )}
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        ) : activeMode === "STAKE" ? (
-          <StakeInterface />
-        ) : null}
-
-        {/* Footer */}
-        {activeMode === "SWAP" && (
-          <div className="text-center mt-4 text-white text-xs">
-            <p>TRUST ↔ INTUIT • 0.3% trading fee</p>
+              </CardContent>
+            </Card>
+            
+            {/* Footer */}
+            <div className="text-center mt-2 text-white text-xs">
+              <p>TRUST ↔ INTUIT • 0.3% fee</p>
+            </div>
           </div>
-        )}
+        ) : activeMode === "STAKE" ? (
+          <div className="mb-4">
+            <StakeInterface />
+          </div>
+        ) : null}
       </div>
     </div>
   );

@@ -22,8 +22,8 @@ export const StakeInterface = () => {
   
   // Available staking tokens
   const stakingTokens = [
-    { symbol: "TRUST", name: "TRUST Token", logo: "/trust.png", address: "native", decimals: 18, isNative: true },
-    { symbol: "INTUIT", name: "Intuit Token", logo: "/intuit.png?v=1", address: "0xe8bD8876CB6f97663c668faae65C4Da579FfA0B5", decimals: 18, isNative: false }
+    { symbol: "TRUST", name: "TRUST Token", logo: "/trust.svg", address: "native", decimals: 18, isNative: true },
+    { symbol: "INTUIT", name: "Intuit Token", logo: "/intuit.svg", address: "0xe8bD8876CB6f97663c668faae65C4Da579FfA0B5", decimals: 18, isNative: false }
   ];
 
   const trustStakingAbi = [
@@ -452,19 +452,18 @@ export const StakeInterface = () => {
     <TooltipProvider>
       <div className="w-full">
       <Card className="bg-white/5 border-white/20 backdrop-blur-2xl shadow-2xl shadow-white/10 relative">
-        <CardContent className="p-6">
+        <CardContent className="p-4">
           {/* Header */}
-          <div className="text-center mb-6">
-            <h1 className="text-2xl font-bold text-white mb-4">Universal Staking</h1>
+          <div className="text-center mb-4">
             
             {/* Token Selector */}
-            <div className="flex justify-center mb-4">
+            <div className="flex justify-center mb-3">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button className="bg-white/10 hover:bg-white/20 text-white border-white/20">
-                    <img src={selectedToken.logo} alt={selectedToken.symbol} className="w-5 h-5 mr-2 rounded-full" />
+                  <Button className="bg-white/10 hover:bg-white/20 text-white border-white/20 text-sm py-1 px-3">
+                    <img src={selectedToken.logo} alt={selectedToken.symbol} className="w-4 h-4 mr-2 rounded-full" />
                     {selectedToken.symbol}
-                    <ChevronDown className="w-4 h-4 ml-2" />
+                    <ChevronDown className="w-3 h-3 ml-2" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="bg-gray-800 border-gray-700">
@@ -485,14 +484,14 @@ export const StakeInterface = () => {
               </DropdownMenu>
             </div>
             
-            <p className="text-gray-400 text-sm">Stake {selectedToken.symbol} tokens to earn rewards</p>
+            <p className="text-gray-400 text-xs">Stake {selectedToken.symbol} to earn rewards</p>
           </div>
 
           {/* Stake/Unstake Toggle */}
-          <div className="flex mb-6">
+          <div className="flex mb-4">
             <button
               onClick={() => setActiveTab("stake")}
-              className={`flex-1 py-3 px-4 rounded-l-xl font-medium transition-all duration-200 ${
+              className={`flex-1 py-2 px-3 rounded-l-xl font-medium transition-all duration-200 text-sm ${
                 activeTab === "stake"
                   ? "bg-white text-black shadow-lg"
                   : "bg-white/10 text-white hover:bg-white/20"
@@ -502,7 +501,7 @@ export const StakeInterface = () => {
             </button>
             <button
               onClick={() => setActiveTab("unstake")}
-              className={`flex-1 py-3 px-4 rounded-r-xl font-medium transition-all duration-200 ${
+              className={`flex-1 py-2 px-3 rounded-r-xl font-medium transition-all duration-200 text-sm ${
                 activeTab === "unstake"
                   ? "bg-white text-black shadow-lg"
                   : "bg-white/10 text-white hover:bg-white/20"
@@ -513,21 +512,21 @@ export const StakeInterface = () => {
           </div>
 
           {/* Amount Input */}
-          <div className="bg-white/5 rounded-xl p-4 border border-white/20 backdrop-blur-xl shadow-lg shadow-black/20 mb-4">
+          <div className="bg-white/5 rounded-xl p-3 border border-white/20 backdrop-blur-xl shadow-lg shadow-black/20 mb-3">
             <div className="flex items-center justify-between mb-2">
               <Input
                 type="number"
                 placeholder="0.0"
                 value={stakeAmount}
                 onChange={(e) => setStakeAmount(e.target.value)}
-                className="bg-transparent border-none text-2xl font-bold text-white placeholder-gray-500 p-0 h-auto focus-visible:ring-0 flex-1"
+                className="bg-transparent border-none text-xl font-bold text-white placeholder-gray-500 p-0 h-auto focus-visible:ring-0 flex-1"
               />
-              <div className="bg-gray-700 text-white rounded-full px-4 py-2 ml-3 flex items-center">
-                <img src={selectedToken.logo} alt={selectedToken.symbol} className="w-5 h-5 mr-2 rounded-full" />
-                {selectedToken.symbol}
+              <div className="bg-gray-700 text-white rounded-full px-3 py-1 ml-3 flex items-center">
+                <img src={selectedToken.logo} alt={selectedToken.symbol} className="w-4 h-4 mr-2 rounded-full" />
+                <span className="text-sm">{selectedToken.symbol}</span>
               </div>
             </div>
-            <div className="flex justify-between items-center text-sm mt-10">
+            <div className="flex justify-between items-center text-sm mt-3">
               <div className="text-gray-400">
                 Balance: {parseFloat(getTokenBalance()).toFixed(4)} {selectedToken.symbol}
               </div>
@@ -550,8 +549,8 @@ export const StakeInterface = () => {
           </div>
 
           {/* Pool Info */}
-          <div className="bg-white/5 rounded-xl p-4 border border-white/20 backdrop-blur-xl shadow-lg shadow-black/20 mb-4">
-            <div className="grid grid-cols-2 gap-4 text-sm">
+          <div className="bg-white/5 rounded-xl p-3 border border-white/20 backdrop-blur-xl shadow-lg shadow-black/20 mb-3">
+            <div className="grid grid-cols-2 gap-3 text-sm">
               <div className="flex flex-col">
                 <div className="flex items-center gap-1">
                   <span className="text-gray-400">APY</span>
@@ -590,8 +589,8 @@ export const StakeInterface = () => {
 
 
           {/* Pool Statistics */}
-          <div className="bg-white/5 rounded-xl p-4 border border-white/20 backdrop-blur-xl shadow-lg shadow-black/20 mb-4">
-            <div className="grid grid-cols-2 gap-4 text-sm">
+          <div className="bg-white/5 rounded-xl p-3 border border-white/20 backdrop-blur-xl shadow-lg shadow-black/20 mb-3">
+            <div className="grid grid-cols-2 gap-3 text-sm">
               <div className="flex flex-col">
                 <span className="text-gray-400">Total Staked</span>
                 <span className="text-white font-semibold">{stakingData.totalStaked} {selectedToken.symbol}</span>
@@ -607,7 +606,7 @@ export const StakeInterface = () => {
           <Button
             onClick={activeTab === "stake" ? handleStake : handleUnstake}
             disabled={!stakeAmount || isLoading || !connectedAddress}
-            className="w-full bg-white hover:bg-gray-200 text-black font-semibold py-3 rounded-xl text-base"
+            className="w-full bg-white hover:bg-gray-200 text-black font-semibold py-2 rounded-xl text-sm"
             onMouseEnter={() => {
               console.log(`🔘 Bouton ${activeTab}:`, {
                 stakeAmount,
@@ -634,7 +633,7 @@ export const StakeInterface = () => {
             <Button
               onClick={handleClaimRewards}
               disabled={isLoading || !connectedAddress || parseFloat(stakingData.rewards) === 0}
-              className={`w-full font-semibold py-3 rounded-xl text-base mt-3 ${
+              className={`w-full font-semibold py-2 rounded-xl text-sm mt-2 ${
                 parseFloat(stakingData.rewards) > 0 
                   ? "bg-green-600 hover:bg-green-700 text-white" 
                   : "bg-gray-600 text-gray-400 cursor-not-allowed"
@@ -655,15 +654,15 @@ export const StakeInterface = () => {
 
           {/* Transaction Status */}
           {transactionStep !== "idle" && (
-            <div className="mt-4 p-3 bg-white/5 rounded-xl border border-white/20 backdrop-blur-xl">
-              <div className="flex items-center justify-between text-sm">
+            <div className="mt-2 p-2 bg-white/5 rounded-xl border border-white/20 backdrop-blur-xl">
+              <div className="flex items-center justify-between text-xs">
                 <span className="text-gray-400">
-                  {transactionStep === "approving" && `Step 1/2: Approving ${selectedToken.symbol} spend...`}
-                  {transactionStep === "staking" && "Step 2/2: Executing stake..."}
-                  {transactionStep === "confirmed" && "Transaction completed successfully!"}
+                  {transactionStep === "approving" && "Approving..."}
+                  {transactionStep === "staking" && "Processing..."}
+                  {transactionStep === "confirmed" && "Completed!"}
                 </span>
                 {isConfirming && (
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                 )}
               </div>
             </div>
@@ -675,25 +674,25 @@ export const StakeInterface = () => {
           <div className="absolute inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div 
               ref={modalRef}
-              className="bg-gray-800 border border-gray-700 rounded-xl p-6 max-w-md w-full relative"
+              className="bg-gray-800 border border-gray-700 rounded-xl p-4 max-w-sm w-full relative"
             >
               {/* Close Button */}
               <button
                 onClick={() => setShowStakingInfo(false)}
-                className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"
+                className="absolute top-3 right-3 text-gray-400 hover:text-white transition-colors"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" />
               </button>
               
               {/* Modal Content */}
-              <div className="text-gray-200 pr-8">
-                <div className="text-sm space-y-3">
-                  <div className="font-semibold text-lg mb-4">🎯 How INTUIT Staking Works</div>
-                  <div>• <strong>Single-sided staking:</strong> Only INTUIT tokens needed (no TTRUST required)</div>
-                  <div>• <strong>Collective goal:</strong> 10,000+ INTUIT total unlocks 12.5% APY rewards</div>
-                  <div>• <strong>Reward pool:</strong> 180,000 INTUIT (18% of total supply) distributed proportionally</div>
-                  <div>• <strong>Immediate unstaking:</strong> Withdraw anytime during staking period</div>
-                  <div>• <strong>No impermanent loss:</strong> Your INTUIT amount never changes</div>
+              <div className="text-gray-200 pr-6">
+                <div className="text-xs space-y-2">
+                  <div className="font-semibold text-sm mb-3">🎯 How INTUIT Staking Works</div>
+                  <div>• <strong>Single-sided staking:</strong> Only INTUIT needed</div>
+                  <div>• <strong>Collective goal:</strong> 10,000+ INTUIT unlocks 12.5% APY</div>
+                  <div>• <strong>Reward pool:</strong> 180,000 INTUIT distributed proportionally</div>
+                  <div>• <strong>Immediate unstaking:</strong> Withdraw anytime</div>
+                  <div>• <strong>No impermanent loss:</strong> Your amount never changes</div>
                 </div>
               </div>
             </div>
