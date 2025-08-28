@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { ParticleBackground } from "./ParticleBackground";
 import { StakeInterface } from "./StakeInterface";
-import { TokenBridge } from "./TokenBridge";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import { Card, CardContent } from "./ui/card";
@@ -21,10 +20,14 @@ export const UniversalDex = () => {
   const dexRouterAddress = "0x42Af1bCF6BD4876421b27c2a7Fcd9C8315cDA121"; // DEXRouter
   const dexFactoryAddress = "0x54D248E118983dDdDF4DAA605CBa832BA6F1eb4C";
 
-  // Working token configuration with liquidity
+  // Token configuration with popular tokens
   const tokens = [
     { symbol: "TRUST", name: "TRUST Token", logo: "/trust.png", address: "native", decimals: 18, isNative: true },
-    { symbol: "INTUIT", name: "Intuit Token", logo: "/intuit.png?v=1", address: "0xe8bD8876CB6f97663c668faae65C4Da579FfA0B5", decimals: 18, isNative: false }
+    { symbol: "INTUIT", name: "Intuit Token", logo: "/intuit.png?v=1", address: "0xe8bD8876CB6f97663c668faae65C4Da579FfA0B5", decimals: 18, isNative: false },
+    { symbol: "BTC", name: "Bitcoin", logo: "/btc.png", address: "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599", decimals: 8, isNative: false },
+    { symbol: "ETH", name: "Ethereum", logo: "/eth.png", address: "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2", decimals: 18, isNative: false },
+    { symbol: "USDC", name: "USD Coin", logo: "/usdc.png", address: "0xA0b86a33E6441E539Eca1dF08E65A5b1e3A4c4b", decimals: 6, isNative: false },
+    { symbol: "USDT", name: "Tether USD", logo: "/usdt.png", address: "0xdAC17F958D2ee523a2206206994597C13D831ec7", decimals: 6, isNative: false }
   ];
 
   const [fromToken, setFromToken] = useState(tokens[0]);
@@ -35,7 +38,7 @@ export const UniversalDex = () => {
   const [isPollingReserves, setIsPollingReserves] = useState(false);
   const [isCalculating, setIsCalculating] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
-  const [activeMode, setActiveMode] = useState<"SWAP" | "STAKE" | "BRIDGE">("SWAP");
+  const [activeMode, setActiveMode] = useState<"SWAP" | "STAKE">("SWAP");
   const [transactionStep, setTransactionStep] = useState<"idle" | "approving" | "swapping" | "confirmed">("idle");
 
   // ERC20 ABI for balance and approval
@@ -467,14 +470,6 @@ export const UniversalDex = () => {
             >
               STAKE
             </button>
-            <button
-              onClick={() => setActiveMode("BRIDGE")}
-              className={`flex-1 py-2 px-4 rounded-xl font-semibold transition-all duration-200 text-sm ${
-                activeMode === "BRIDGE" ? "bg-white text-black shadow-lg" : "text-white hover:bg-white/10"
-              }`}
-            >
-              BRIDGE
-            </button>
           </div>
         </div>
 
@@ -738,8 +733,6 @@ export const UniversalDex = () => {
           </Card>
         ) : activeMode === "STAKE" ? (
           <StakeInterface />
-        ) : activeMode === "BRIDGE" ? (
-          <TokenBridge />
         ) : null}
 
         {/* Footer */}
