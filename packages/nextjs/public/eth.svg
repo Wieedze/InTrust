@@ -1,0 +1,11 @@
+<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="16" cy="16" r="16" fill="#627EEA"/>
+  <g fill="white">
+    <path d="m16.498 4v8.87l7.497 3.35z" opacity="0.6"/>
+    <path d="m16.498 4-7.497 12.22 7.497-3.35z"/>
+    <path d="m16.498 21.968v6.027l7.5-10.573z" opacity="0.6"/>
+    <path d="m16.498 27.995v-6.028l-7.497-4.305z"/>
+    <path d="m16.498 20.573 7.497-4.353-7.497-3.348z" opacity="0.2"/>
+    <path d="m8.001 16.22 7.497 4.353v-7.701z" opacity="0.6"/>
+  </g>
+</svg>

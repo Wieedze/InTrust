@@ -10,7 +10,7 @@ import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useInitializeNativeCurrencyPrice } from "~~/hooks/scaffold-eth";
 import { wagmiConfig } from "~~/services/web3/wagmiConfig";
 
-const IntudexApp = ({ children }: { children: React.ReactNode }) => {
+const InTrustApp = ({ children }: { children: React.ReactNode }) => {
   useInitializeNativeCurrencyPrice();
 
   return (
@@ -26,7 +26,7 @@ const IntudexApp = ({ children }: { children: React.ReactNode }) => {
               className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl"
             />
             <h1 className="text-lg sm:text-3xl font-bold text-white">
-              TrustSwap
+              InTrust
             </h1>
           </div>
           
@@ -50,7 +50,7 @@ export const queryClient = new QueryClient({
   },
 });
 
-export const IntudexAppProviders = ({ children }: { children: React.ReactNode }) => {
+export const InTrustAppProviders = ({ children }: { children: React.ReactNode }) => {
   return (
     <WagmiProvider config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>
@@ -65,7 +65,7 @@ export const IntudexAppProviders = ({ children }: { children: React.ReactNode })
           })}
         >
           <ProgressBar height="3px" color="#2299dd" />
-          <IntudexApp>{children}</IntudexApp>
+          <InTrustApp>{children}</InTrustApp>
         </RainbowKitProvider>
       </QueryClientProvider>
     </WagmiProvider>

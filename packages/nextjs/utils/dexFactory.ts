@@ -27,7 +27,7 @@ export const AVAILABLE_TOKENS: Token[] = [
     symbol: "INTUIT",
     name: "Intuit Token",
     address: "0x5FbDB2315678afecb367f032d93F642f64180aa3" as Address,
-    logo: "/intudex.png?v=1",
+    logo: "/InTrust.png?v=1",
   },
   // Ajoutez ici d'autres tokens ERC20 !
 ];

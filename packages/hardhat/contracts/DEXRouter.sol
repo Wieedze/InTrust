@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /**
  * @title DEX Router
- * @author intudex team
+ * @author InTrust team
  * @notice Router contract for simplified interactions with DEX pairs
  * @dev Handles swaps, liquidity provision, and multi-hop trading
  */
