@@ -15,14 +15,15 @@ import { useAccount, useBalance, useReadContract, useWriteContract, useWaitForTr
 export const UniversalDex = () => {
   const { address: connectedAddress } = useAccount();
 
-  // Working testnet addresses with liquidity
-  const dexRouterAddress = "0x42Af1bCF6BD4876421b27c2a7Fcd9C8315cDA121"; // DEXRouter
-  const dexFactoryAddress = "0x54D248E118983dDdDF4DAA605CBa832BA6F1eb4C";
+  // Latest deployed addresses with faucet and liquidity
+  const dexRouterAddress = "0x5f3f1dBD7B74C6B46e8c44f98792A1dAf8d69154"; // DEXRouter
+  const dexFactoryAddress = "0x1291Be112d480055DaFd8a610b7d1e203891C274"; // DEXFactory
+  const faucetAddress = "0xb7278A61aa25c888815aFC32Ad3cC52fF24fE575"; // INTUIT Faucet
 
   // Token configuration - Only TRUST and INTUIT
   const tokens = [
     { symbol: "TRUST", name: "TRUST Token", logo: "/trust.svg", address: "native", decimals: 18, isNative: true },
-    { symbol: "INTUIT", name: "Intuit Token", logo: "/intuit.svg", address: "0xe8bD8876CB6f97663c668faae65C4Da579FfA0B5", decimals: 18, isNative: false }
+    { symbol: "INTUIT", name: "Intuit Token", logo: "/intuit.svg", address: "0x809d550fca64d94Bd9F66E60752A544199cfAC3D", decimals: 18, isNative: false }
   ];
 
   const [fromToken, setFromToken] = useState(tokens[0]);
@@ -37,6 +38,8 @@ export const UniversalDex = () => {
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [activeMode, setActiveMode] = useState<"SWAP" | "STAKE">("SWAP");
   const [transactionStep, setTransactionStep] = useState<"idle" | "approving" | "swapping" | "confirmed">("idle");
+  const [faucetCooldown, setFaucetCooldown] = useState(0);
+  const [isFaucetClaiming, setIsFaucetClaiming] = useState(false);
 
   // ERC20 ABI for balance and approval
   const erc20Abi = [
@@ -128,6 +131,38 @@ export const UniversalDex = () => {
     }
   ];
 
+  // Faucet ABI
+  const faucetAbi = [
+    {
+      name: "claimTokens",
+      type: "function",
+      stateMutability: "nonpayable",
+      inputs: [],
+      outputs: []
+    },
+    {
+      name: "canClaim",
+      type: "function",
+      stateMutability: "view",
+      inputs: [{ name: "user", type: "address" }],
+      outputs: [{ name: "", type: "bool" }]
+    },
+    {
+      name: "timeUntilNextClaim",
+      type: "function",
+      stateMutability: "view",
+      inputs: [{ name: "user", type: "address" }],
+      outputs: [{ name: "", type: "uint256" }]
+    },
+    {
+      name: "claimAmount",
+      type: "function",
+      stateMutability: "view",
+      inputs: [],
+      outputs: [{ name: "", type: "uint256" }]
+    }
+  ] as const;
+
   // Get WETH address directly from router
   const { data: wethAddress } = useReadContract({
     address: dexRouterAddress as `0x${string}`,
@@ -163,6 +198,24 @@ export const UniversalDex = () => {
     functionName: "allowance",
     args: [connectedAddress as `0x${string}`, dexRouterAddress as `0x${string}`],
     query: { enabled: !!connectedAddress },
+  });
+
+  // Check if user can claim from faucet
+  const { data: canClaimFaucet } = useReadContract({
+    address: faucetAddress as `0x${string}`,
+    abi: faucetAbi,
+    functionName: "canClaim",
+    args: [connectedAddress as `0x${string}`],
+    query: { enabled: !!connectedAddress && faucetAddress !== "0x..." },
+  });
+
+  // Get faucet cooldown time
+  const { data: faucetTimeUntilClaim } = useReadContract({
+    address: faucetAddress as `0x${string}`,
+    abi: faucetAbi,
+    functionName: "timeUntilNextClaim",
+    args: [connectedAddress as `0x${string}`],
+    query: { enabled: !!connectedAddress && faucetAddress !== "0x..." },
   });
 
   // Helper function to parse amounts based on token decimals
@@ -344,6 +397,33 @@ export const UniversalDex = () => {
       setTransactionStep("idle");
     }
   }, [writeContract, fromAmount, connectedAddress, amountsOut, fromToken.address, fromToken.decimals, toToken.address, needsApproval, handleApprove]);
+
+  // Handle faucet claim
+  const handleFaucetClaim = useCallback(async () => {
+    if (!connectedAddress || faucetAddress === "0x...") return;
+    
+    try {
+      setIsFaucetClaiming(true);
+      writeContract({
+        address: faucetAddress as `0x${string}`,
+        abi: faucetAbi,
+        functionName: "claimTokens",
+        gas: 150000n,
+      });
+    } catch (error) {
+      console.error("Faucet claim failed:", error);
+      setIsFaucetClaiming(false);
+    }
+  }, [writeContract, connectedAddress, faucetAddress]);
+
+  // Update faucet claiming state on transaction success/failure
+  useEffect(() => {
+    if (isConfirmed && isFaucetClaiming) {
+      setIsFaucetClaiming(false);
+      refetchFromBalance();
+      refetchToBalance();
+    }
+  }, [isConfirmed, isFaucetClaiming, refetchFromBalance, refetchToBalance]);
 
   // Format balance display
   const formatBalance = (balance: any, decimals: number, isNative = false) => {
@@ -694,6 +774,28 @@ export const UniversalDex = () => {
                     />
                   </div>
                 </div>
+
+                {/* Faucet Button - Show only for INTUIT */}
+                {connectedAddress && faucetAddress !== "0x..." && (
+                  <div className="mb-3">
+                    <Button
+                      onClick={handleFaucetClaim}
+                      disabled={!canClaimFaucet || isFaucetClaiming}
+                      className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2 rounded-xl text-sm"
+                    >
+                      {isFaucetClaiming ? (
+                        <span className="flex items-center justify-center gap-2">
+                          <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          Claiming...
+                        </span>
+                      ) : canClaimFaucet ? (
+                        "🚰 Get 1000 Free INTUIT"
+                      ) : (
+                        `🕒 Next claim in ${Math.ceil(Number(faucetTimeUntilClaim || 0) / 3600)}h`
+                      )}
+                    </Button>
+                  </div>
+                )}
 
                 {/* Action Buttons */}
                 <div className="space-y-2">

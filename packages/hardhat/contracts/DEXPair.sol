@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /**
  * @title DEX Pair
- * @author intudex team
+ * @author InTrust team
  * @notice Automated Market Maker for any ERC20 token pair
  * @dev Constant Product Formula (x*y=k) implementation for token swaps and liquidity provision
  */

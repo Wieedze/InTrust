@@ -1,5 +1,5 @@
 import { Space_Grotesk } from "next/font/google";
-import { IntudexAppProviders } from "~~/components/IntudexAppProviders";
+import { InTrustAppProviders } from "~~/components/InTrustAppProviders";
 import { getMetadata } from "~~/utils/scaffold-eth/getMetadata";
 import "@rainbow-me/rainbowkit/styles.css";
 import "~~/styles/globals.css";
@@ -18,7 +18,7 @@ const ScaffoldEthApp = ({ children }: { children: React.ReactNode }) => {
   return (
     <html suppressHydrationWarning className={`${spaceGrotesk.variable} font-space-grotesk`}>
       <body>
-        <IntudexAppProviders>{children}</IntudexAppProviders>
+        <InTrustAppProviders>{children}</InTrustAppProviders>
       </body>
     </html>
   );

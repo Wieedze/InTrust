@@ -16,14 +16,14 @@ export const StakeInterface = () => {
   const [showStakingInfo, setShowStakingInfo] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
   
-  // Working testnet addresses with staking rewards
-  const intuitStakingAddress = "0xCc70E3Acd7764e8c376b11A05c47eAFf05a1e115"; // INTUIT Staking contract
+  // Latest deployed addresses with staking rewards
+  const intuitStakingAddress = "0xCD8a1C3ba11CF5ECfa6267617243239504a98d90"; // INTUIT Staking contract
   const trustStakingAddress = "0x546a4E6BF6195A809632B528de28691BBFDb7507"; // TRUST Staking contract (FIXED)
   
   // Available staking tokens
   const stakingTokens = [
     { symbol: "TRUST", name: "TRUST Token", logo: "/trust.svg", address: "native", decimals: 18, isNative: true },
-    { symbol: "INTUIT", name: "Intuit Token", logo: "/intuit.svg", address: "0xe8bD8876CB6f97663c668faae65C4Da579FfA0B5", decimals: 18, isNative: false }
+    { symbol: "INTUIT", name: "Intuit Token", logo: "/intuit.svg", address: "0x809d550fca64d94Bd9F66E60752A544199cfAC3D", decimals: 18, isNative: false }
   ];
 
   const trustStakingAbi = [

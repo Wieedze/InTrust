@@ -3,12 +3,12 @@ import type { Metadata } from "next";
 const baseUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL
   ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
   : `http://localhost:${process.env.PORT || 3000}`;
-const titleTemplate = "%s | INTUDEX";
+const titleTemplate = "%s | InTrust";
 
 export const getMetadata = ({
   title,
   description,
-  imageRelativePath = "/intudex.png",
+  imageRelativePath = "/InTrust.png",
 }: {
   title: string;
   description: string;

@@ -5,7 +5,7 @@ import "./DEXPair.sol";
 
 /**
  * @title DEX Factory
- * @author intudex team
+ * @author InTrust team
  * @notice Factory contract to create and manage trading pairs for any ERC20 tokens
  * @dev Creates DEXPair contracts for each token pair and manages them
  */
